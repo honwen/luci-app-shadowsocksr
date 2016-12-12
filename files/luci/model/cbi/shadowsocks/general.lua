@@ -11,7 +11,7 @@ local function has_bin(name)
 end
 
 local function has_ss_bin()
-	return has_bin("ss-redir"), has_bin("ss-local"), has_bin("ss-tunnel")
+	return has_bin("ssr-redir"), has_bin("ssr-local"), has_bin("ssr-tunnel")
 end
 
 local function has_udp_relay()
@@ -47,17 +47,17 @@ s.anonymous = true
 
 if has_redir then
 	o = s:option(DummyValue, "_status", translate("Transparent Proxy"))
-	o.value = get_status("ss-redir")
+	o.value = get_status("ssr-redir")
 end
 
 if has_local then
 	o = s:option(DummyValue, "_status", translate("SOCKS5 Proxy"))
-	o.value = get_status("ss-local")
+	o.value = get_status("ssr-local")
 end
 
 if has_tunnel then
 	o = s:option(DummyValue, "_status", translate("Port Forward"))
-	o.value = get_status("ss-tunnel")
+	o.value = get_status("ssr-tunnel")
 end
 
 -- [[ Transparent Proxy ]]--

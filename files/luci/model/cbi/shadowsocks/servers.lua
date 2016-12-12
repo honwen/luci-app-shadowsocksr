@@ -42,4 +42,16 @@ function o.cfgvalue(...)
 	return v and v:upper() or "?"
 end
 
+o = s:option(DummyValue, "plugin_protocol", translate("PROTOCOL"))
+function o.cfgvalue(...)
+	local v = Value.cfgvalue(...)
+	return v and v:upper() or "?"
+end
+
+o = s:option(DummyValue, "plugin_obfs", translate("OBFS"))
+function o.cfgvalue(...)
+	local v = Value.cfgvalue(...)
+	return v and v:upper() or "?"
+end
+
 return m

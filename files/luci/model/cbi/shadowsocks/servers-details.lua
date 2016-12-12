@@ -23,6 +23,23 @@ local encrypt_methods = {
 	"chacha20-ietf",
 }
 
+local plugin_protocols = {
+	"origin",
+	"verify_sha1",
+	"auth_sha1",
+	"auth_sha1_v2",
+	"auth_sha1_v4",
+	"auth_aes128_md5",
+	"auth_aes128_sha1",
+}
+
+local plugin_obfss = {
+	"plain",
+	"http_simple",
+	"http_post",
+	"tls1.2_ticket_auth",
+}
+
 local function has_bin(name)
 	return luci.sys.call("command -v %s >/dev/null" %{name}) == 0
 end
@@ -47,16 +64,13 @@ s.addremove = false
 o = s:option(Value, "alias", translate("Alias(optional)"))
 o.rmempty = true
 
-o = s:option(Flag, "auth", translate("Onetime Authentication"))
-o.rmempty = false
-
 if support_fast_open() and has_bin("ss-local") then
 	o = s:option(Flag, "fast_open", translate("TCP Fast Open"))
 	o.rmempty = false
 end
 
 o = s:option(Value, "server", translate("Server Address"))
-o.datatype = "ipaddr"
+o.datatype = "host"
 o.rmempty = false
 
 o = s:option(Value, "server_port", translate("Server Port"))
@@ -75,5 +89,17 @@ o.rmempty = false
 o = s:option(ListValue, "encrypt_method", translate("Encrypt Method"))
 for _, v in ipairs(encrypt_methods) do o:value(v, v:upper()) end
 o.rmempty = false
+
+o = s:option(ListValue, "plugin_protocol", translate("PROTOCOL"))
+for _, v in ipairs(plugin_protocols) do o:value(v, v:upper()) end
+o.rmempty = false
+
+o = s:option(ListValue, "plugin_obfs", translate("OBFS"))
+for _, v in ipairs(plugin_obfss) do o:value(v, v:upper()) end
+o.rmempty = false
+
+o = s:option(Value, "plugin_obfs_param", translate("OBFS-PARAM"))
+o.datatype = "host"
+o.rmempty = true
 
 return m

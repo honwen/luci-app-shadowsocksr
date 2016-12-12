@@ -109,6 +109,15 @@ msgstr "影梭"
 msgid "SOCKS5 Proxy"
 msgstr "SOCKS5代理"
 
+msgid "PROTOCOL"
+msgstr "协议插件"
+
+msgid "OBFS"
+msgstr "混淆插件"
+
+msgid "OBFS-PARAM"
+msgstr "混淆参数"
+
 msgid "TCP Fast Open"
 msgstr "TCP快速打开"
 

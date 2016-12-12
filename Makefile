@@ -23,13 +23,13 @@ define Package/luci-app-shadowsocks
 	SECTION:=luci
 	CATEGORY:=LuCI
 	SUBMENU:=3. Applications
-	TITLE:=LuCI Support for shadowsocks-libev
+	TITLE:=LuCI Support for shadowsocksR-libev
 	PKGARCH:=all
-	DEPENDS:=+iptables +ipset
+	DEPENDS:=+iptables +ipset +resolveip
 endef
 
 define Package/luci-app-shadowsocks/description
-	LuCI Support for shadowsocks-libev.
+	LuCI Support for shadowsocksR-libev.
 endef
 
 define Build/Prepare

@@ -73,7 +73,10 @@ gen_config_file() {
 		    "local_address": "0.0.0.0",
 		    "password": "$(uci_get_by_name $1 password)",
 		    "timeout": $(uci_get_by_name $1 timeout 60),
-		    "method": "$(uci_get_by_name $1 encrypt_method)"
+		    "method": "$(uci_get_by_name $1 encrypt_method)",
+		    "protocol": "$(uci_get_by_name $1 plugin_protocol)",
+		    "obfs": "$(uci_get_by_name $1 plugin_obfs)",
+		    "obfs_param": "$(uci_get_by_name $1 plugin_obfs_param)"
 		}
 EOF
 }
@@ -94,7 +97,7 @@ start_rules() {
 }
 
 rules() {
-	if !(pidof ss-redir >/dev/null); then
+	if !(pidof ssr-redir >/dev/null); then
 		logger -st $NAME -p3 "ss-redir not running."
 		return 1
 	fi
@@ -103,13 +106,13 @@ rules() {
 
 start_redir() {
 	gen_config_file $1
-	ss-redir -c $CONFIG_FILE $2 $(get_arg_ota $1) \
+	ssr-redir -c $CONFIG_FILE $2 $(get_arg_ota $1) \
 		-l $(uci_get_by_type transparent_proxy local_port 1234) \
-		-f /var/run/ss-redir$3.pid
+		-f /var/run/ssr-redir$3.pid
 }
 
 ss_redir() {
-	command -v ss-redir >/dev/null 2>&1 || return 1
+	command -v ssr-redir >/dev/null 2>&1 || return 1
 	local main_server=$(uci_get_by_type transparent_proxy main_server)
 	valid_server $main_server || return 1
 	local udp_relay_server=$(uci_get_by_type transparent_proxy udp_relay_server)
@@ -126,27 +129,27 @@ ss_redir() {
 
 start_local() {
 	gen_config_file $1
-	ss-local -c $CONFIG_FILE -u $(get_arg_ota $1) $(get_arg_tfo $1) \
+	ssr-local -c $CONFIG_FILE -u $(get_arg_ota $1) $(get_arg_tfo $1) \
 		-l $(uci_get_by_type socks5_proxy local_port 1080) \
-		-f /var/run/ss-local.pid
+		-f /var/run/ssr-local.pid
 }
 
 ss_local() {
-	command -v ss-local >/dev/null 2>&1 || return 0
+	command -v ssr-local >/dev/null 2>&1 || return 0
 	local server=$(uci_get_by_type socks5_proxy server)
 	valid_server $server && start_local $server
 }
 
 start_tunnel() {
 	gen_config_file $1
-	ss-tunnel -c $CONFIG_FILE -u $(get_arg_ota $1) \
+	ssr-tunnel -c $CONFIG_FILE -u $(get_arg_ota $1) \
 		-l $(uci_get_by_type port_forward local_port 5300) \
 		-L $(uci_get_by_type port_forward destination 8.8.4.4:53) \
-		-f /var/run/ss-tunnel.pid
+		-f /var/run/ssr-tunnel.pid
 }
 
 ss_tunnel() {
-	command -v ss-tunnel >/dev/null 2>&1 || return 0
+	command -v ssr-tunnel >/dev/null 2>&1 || return 0
 	local server=$(uci_get_by_type port_forward server)
 	valid_server $server && start_tunnel $server
 }
@@ -165,5 +168,5 @@ kill_all() {
 
 stop() {
 	/usr/bin/ss-rules -f
-	kill_all ss-redir ss-local ss-tunnel
+	kill_all ssr-redir ssr-local ssr-tunnel
 }
