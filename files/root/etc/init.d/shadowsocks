@@ -57,6 +57,16 @@ get_arg_tfo() {
 	fi
 }
 
+get_arg_obfs() {
+	local obfs=$(uci_get_by_name $1 obfs)
+	[ -n "$obfs" ] && echo "--obfs $obfs"
+}
+
+get_arg_obfs_host() {
+	[ -n "$(uci_get_by_name $1 obfs)" ] && \
+		echo "--obfs-host $(uci_get_by_name $1 obfs_host cloudfront.net)"
+}
+
 get_server_ips() {
 	echo $(uci_get_by_name $1 server)
 }
@@ -107,7 +117,7 @@ rules() {
 
 start_redir() {
 	gen_config_file $1
-	ssr-redir -c $CONFIG_FILE $2 $(get_arg_ota $1) \
+	ssr-redir -c $CONFIG_FILE $2 \
 		-l $(uci_get_by_type transparent_proxy local_port 1234) \
 		-f /var/run/ssr-redir$3.pid
 }
@@ -136,7 +146,7 @@ ss_redir() {
 
 start_local() {
 	gen_config_file $1
-	ssr-local -c $CONFIG_FILE -u $(get_arg_ota $1) $(get_arg_tfo $1) \
+	ssr-local -c $CONFIG_FILE -u $(get_arg_tfo $1) \
 		-l $(uci_get_by_type socks5_proxy local_port 1080) \
 		-f /var/run/ssr-local.pid
 }
@@ -149,7 +159,7 @@ ss_local() {
 
 start_tunnel() {
 	gen_config_file $1
-	ssr-tunnel -c $CONFIG_FILE -u $(get_arg_ota $1) \
+	ssr-tunnel -c $CONFIG_FILE -u \
 		-l $(uci_get_by_type port_forward local_port 5300) \
 		-L $(uci_get_by_type port_forward destination 8.8.4.4:53) \
 		-f /var/run/ssr-tunnel.pid
@@ -168,6 +178,20 @@ start() {
 	ss_tunnel
 	rm -f $CONFIG_FILE
 	add_cron
+}
+
+delay_start() {
+	(sleep $1 && start >/dev/null 2>&1) &
+}
+
+boot() {
+	local delay=$(uci_get_by_type general start_delay 0)
+	if [ "$delay" -gt 0 ]; then
+		delay_start $delay
+	else
+		start
+	fi
+	return 0
 }
 
 kill_all() {

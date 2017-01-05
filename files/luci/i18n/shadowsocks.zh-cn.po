@@ -1,8 +1,14 @@
 msgid ""
 msgstr "Content-Type: text/plain; charset=UTF-8\n"
 
+msgid "%u seconds"
+msgstr "%u 秒"
+
 msgid "Access Control"
 msgstr "访问控制"
+
+msgid "Additional Parameters"
+msgstr "附加参数"
 
 msgid "Alias"
 msgstr "别名"
@@ -12,6 +18,9 @@ msgstr "别名(可选)"
 
 msgid "Bypassed IP List"
 msgstr "被忽略IP列表"
+
+msgid "Boot Settings"
+msgstr "启动设置"
 
 msgid "Bypassed IP"
 msgstr "额外被忽略IP"
@@ -46,6 +55,9 @@ msgstr "强制走代理IP"
 msgid "Global"
 msgstr "全局代理"
 
+msgid "Header Obfuscating"
+msgstr "头部混淆"
+
 msgid "Host"
 msgstr "主机"
 
@@ -64,11 +76,17 @@ msgstr "无"
 msgid "Normal"
 msgstr "正常代理"
 
+msgid "Not enabled"
+msgstr "未启用"
+
 msgid "NOT RUNNING"
 msgstr "未运行"
 
 msgid "NULL - As Global Proxy"
 msgstr "留空 - 作为全局代理"
+
+msgid "Obfuscating Hostname"
+msgstr "头部混淆主机名"
 
 msgid "Onetime Authentication"
 msgstr "一次验证"
@@ -78,6 +96,9 @@ msgstr "密码"
 
 msgid "Port Forward"
 msgstr "端口转发"
+
+msgid "Proxy port numbers %s only"
+msgstr "仅代理 %s 端口"
 
 msgid "RUNNING"
 msgstr "运行中"
@@ -117,6 +138,9 @@ msgstr "混淆插件"
 
 msgid "OBFS-PARAM"
 msgstr "混淆参数"
+
+msgid "Start Delay"
+msgstr "启动延时"
 
 msgid "TCP Fast Open"
 msgstr "TCP快速打开"
