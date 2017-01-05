@@ -10,8 +10,9 @@ START=90
 STOP=15
 
 NAME=shadowsocks
-EXTRA_COMMANDS=rules
+EXTRA_COMMANDS=rules watchdog
 CONFIG_FILE=/var/etc/$NAME.json
+CRON_FILE=/etc/crontabs/root
 
 uci_get_by_name() {
 	local ret=$(uci get $NAME.$1.$2 2>/dev/null)
@@ -125,6 +126,12 @@ ss_redir() {
 	else
 		start_redir $main_server
 	fi
+
+	uci_get_by_name $main_server      server | sed "s/^/server=\//;s/$/\/114.114.115.115/"    >  /var/dnsmasq.d/ss.conf
+	uci_get_by_name $main_server      server | sed "s/^/server=\//;s/$/\/208.67.222.222#443/" >> /var/dnsmasq.d/ss.conf
+	uci_get_by_name $udp_relay_server server | sed "s/^/server=\//;s/$/\/114.114.115.115/"    >> /var/dnsmasq.d/ss.conf
+	uci_get_by_name $udp_relay_server server | sed "s/^/server=\//;s/$/\/208.67.222.222#443/" >> /var/dnsmasq.d/ss.conf
+	/etc/init.d/dnsmasq restart && sleep 3
 }
 
 start_local() {
@@ -160,6 +167,7 @@ start() {
 	ss_local
 	ss_tunnel
 	rm -f $CONFIG_FILE
+	add_cron
 }
 
 kill_all() {
@@ -169,4 +177,45 @@ kill_all() {
 stop() {
 	/usr/bin/ss-rules -f
 	kill_all ssr-redir ssr-local ssr-tunnel
+	rm -f /var/dnsmasq.d/ss.conf
+	del_cron
+}
+
+add_cron() {
+	echo '* * * * * /etc/init.d/shadowsocks watchdog >> /tmp/shadowsocks_watchdog.log 2>&1' >> $CRON_FILE
+	/etc/init.d/cron restart
+}
+
+del_cron() {
+	sed -i '/shadowsocks watchdog/d' $CRON_FILE
+	/etc/init.d/cron restart
+}
+
+watchdog(){
+	command -v ssr-redir >/dev/null 2>&1 || return 1
+	local main_server=$(uci_get_by_type transparent_proxy main_server)
+	valid_server $main_server || return 1
+
+	TRPORT=$(uci_get_by_type transparent_proxy local_port 1234)
+	GOOGLE=$(ping -4 www.gstatic.com -c 1 -w 5 | sed '1{s/[^(]*(//;s/).*//;q}')
+
+	LOGTIME=$(date "+%Y-%m-%d %H:%M:%S")
+
+	iptables -t nat -I OUTPUT -p tcp -d $GOOGLE -j REDIRECT --to-port $TRPORT
+	wget --spider --quiet --tries=1 --timeout=3 $GOOGLE/generate_204
+	if [ "Z$?" = "Z0" ]; then
+		echo '['$LOGTIME'] ShadowsocksR No Problem.'
+	else
+		wget --spider --quiet --tries=1 --timeout=3 www.qq.com
+		if [ "Z$?" = "Z0" ]; then
+			echo '['$LOGTIME'] Problem decteted, restarting ShadowsocksR...'
+			stop
+			start
+		elseadd
+			echo '['$LOGTIME'] Network Problem. Do nothing.'
+		fi
+	fi
+
+	iptables -t nat -D OUTPUT -p tcp -d $GOOGLE -j REDIRECT --to-port $TRPORT
+	return 0
 }
