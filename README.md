@@ -49,9 +49,9 @@ OpenWrt LuCI for Shadowsocks-libev
 
  可执行文件  | 可选 | 功能        | TCP协议 | UDP协议 
  ------------|------|-------------|---------|-----------------------------------
- `ss-redir`  | 是   | 透明代理    | 支持    | 需安装 `iptables-mod-tproxy`, `ip`
- `ss-local`  | 是   | SOCKS5 代理 | 支持    | 支持
- `ss-tunnel` | 是   | 端口转发    | 支持    | 支持
+ `ssr-redir`  | 是   | 透明代理    | 支持    | 需安装 `iptables-mod-tproxy`, `ip`
+ `ssr-local`  | 是   | SOCKS5 代理 | 支持    | 支持
+ `ssr-tunnel` | 是   | 端口转发    | 支持    | 支持
 
 注: 可执行文件在 `$PATH` 环境变量所表示的搜索路径中, 都可被正确调用.
 
@@ -88,7 +88,7 @@ make package/luci-app-shadowsocks/compile V=99
  [release_url]: https://github.com/shadowsocks/luci-app-shadowsocks/releases/latest
  [gitter_badge]: https://badges.gitter.im/shadowsocks/luci-app-shadowsocks.svg
  [gitter_url]: https://gitter.im/shadowsocks/luci-app-shadowsocks
- [openwrt-shadowsocks]: https://github.com/shadowsocks/openwrt-shadowsocks
+ [openwrt-shadowsocks]: https://github.com/chenhw2/openwrt-shadowsocks
  [openwrt-sdk]: https://wiki.openwrt.org/doc/howto/obtain.firmware.sdk
  [ss-rules]: https://github.com/shadowsocks/luci-app-shadowsocks/wiki/Instruction-of-ss-rules
  [Use-UCI-system]: https://github.com/shadowsocks/luci-app-shadowsocks/wiki/Use-UCI-system
