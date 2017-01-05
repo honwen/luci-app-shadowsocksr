@@ -10,7 +10,7 @@ START=90
 STOP=15
 
 NAME=shadowsocks
-EXTRA_COMMANDS=rules watchdog
+EXTRA_COMMANDS="rules watchdog"
 CONFIG_FILE=/var/etc/$NAME.json
 CRON_FILE=/etc/crontabs/root
 
@@ -128,6 +128,13 @@ ss_redir() {
 	valid_server $main_server || return 1
 	local udp_relay_server=$(uci_get_by_type transparent_proxy udp_relay_server)
 	[ "$udp_relay_server" = "same" ] && udp_relay_server=$main_server
+
+	uci_get_by_name $main_server      server | sed "s/^/server=\//;s/$/\/114.114.115.115/"    >  /var/dnsmasq.d/ss.conf
+	uci_get_by_name $main_server      server | sed "s/^/server=\//;s/$/\/208.67.222.222#443/" >> /var/dnsmasq.d/ss.conf
+	uci_get_by_name $udp_relay_server server | sed "s/^/server=\//;s/$/\/114.114.115.115/"    >> /var/dnsmasq.d/ss.conf
+	uci_get_by_name $udp_relay_server server | sed "s/^/server=\//;s/$/\/208.67.222.222#443/" >> /var/dnsmasq.d/ss.conf
+	/etc/init.d/dnsmasq restart
+
 	if [ "$udp_relay_server" = "$main_server" ]; then
 		start_redir $main_server -u
 	elif valid_server $udp_relay_server; then
@@ -137,11 +144,7 @@ ss_redir() {
 		start_redir $main_server
 	fi
 
-	uci_get_by_name $main_server      server | sed "s/^/server=\//;s/$/\/114.114.115.115/"    >  /var/dnsmasq.d/ss.conf
-	uci_get_by_name $main_server      server | sed "s/^/server=\//;s/$/\/208.67.222.222#443/" >> /var/dnsmasq.d/ss.conf
-	uci_get_by_name $udp_relay_server server | sed "s/^/server=\//;s/$/\/114.114.115.115/"    >> /var/dnsmasq.d/ss.conf
-	uci_get_by_name $udp_relay_server server | sed "s/^/server=\//;s/$/\/208.67.222.222#443/" >> /var/dnsmasq.d/ss.conf
-	/etc/init.d/dnsmasq restart && sleep 3
+	sleep 2
 }
 
 start_local() {
@@ -206,12 +209,13 @@ stop() {
 }
 
 add_cron() {
-	echo '* * * * * /etc/init.d/shadowsocks watchdog >> /tmp/shadowsocks_watchdog.log 2>&1' >> $CRON_FILE
+	echo '0   */3   * * *  rm -f /tmp/shadowsocks_watchdog.log 2>&1' >> $CRON_FILE
+	echo '*    *    * * * /etc/init.d/shadowsocks watchdog >> /tmp/shadowsocks_watchdog.log 2>&1' >> $CRON_FILE
 	/etc/init.d/cron restart
 }
 
 del_cron() {
-	sed -i '/shadowsocks watchdog/d' $CRON_FILE
+	sed -i '/shadowsocks_watchdog/d' $CRON_FILE
 	/etc/init.d/cron restart
 }
 
@@ -226,16 +230,18 @@ watchdog(){
 	LOGTIME=$(date "+%Y-%m-%d %H:%M:%S")
 
 	iptables -t nat -I OUTPUT -p tcp -d $GOOGLE -j REDIRECT --to-port $TRPORT
-	wget --spider --quiet --tries=1 --timeout=3 $GOOGLE/generate_204
+	wget --spider --quiet --tries=1 --timeout=3 $GOOGLE/generate_204 2>/dev/null ||
+		curl --connect-timeout 2 --max-time 7 -s $GOOGLE/generate_204
 	if [ "Z$?" = "Z0" ]; then
 		echo '['$LOGTIME'] ShadowsocksR No Problem.'
 	else
-		wget --spider --quiet --tries=1 --timeout=3 www.qq.com
+		wget --spider --quiet --tries=1 --timeout=3 'www.qq.com/robots.txt' 2>/dev/null ||
+			curl --connect-timeout 2 --max-time 7 -s 'www.qq.com/robots.txt'
 		if [ "Z$?" = "Z0" ]; then
 			echo '['$LOGTIME'] Problem decteted, restarting ShadowsocksR...'
-			stop
-			start
-		elseadd
+			stop  >/dev/null 2>&1
+			start >/dev/null 2>&1
+		else
 			echo '['$LOGTIME'] Network Problem. Do nothing.'
 		fi
 	fi
