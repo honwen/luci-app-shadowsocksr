@@ -27,4 +27,15 @@ function index()
 	entry({"admin", "services", "shadowsocks", "access-control"},
 		cbi("shadowsocks/access-control"),
 		_("Access Control"), 30).leaf = true
+
+	entry({"admin", "services", "shadowsocks", "log"},
+		call("action_log"),
+		_("System Log"), 40).leaf = true
+end
+
+function action_log()
+	local fs = require "nixio.fs"
+	local conffile = "/var/log/shadowsocks_watchdog.log" 
+	local watchdog = fs.readfile(conffile) or ""
+	luci.template.render("admin_status/syslog", {syslog=watchdog})
 end

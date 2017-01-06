@@ -209,8 +209,8 @@ stop() {
 }
 
 add_cron() {
-	echo '0   */3   * * *  rm -f /tmp/shadowsocks_watchdog.log 2>&1' >> $CRON_FILE
-	echo '*    *    * * * /etc/init.d/shadowsocks watchdog >> /tmp/shadowsocks_watchdog.log 2>&1' >> $CRON_FILE
+	echo '0   */3   * * *  rm -f /var/log/shadowsocks_watchdog.log 2>&1' >> $CRON_FILE
+	echo '*    *    * * * /etc/init.d/shadowsocks watchdog >> /var/log/shadowsocks_watchdog.log 2>&1' >> $CRON_FILE
 	/etc/init.d/cron restart
 }
 
