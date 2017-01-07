@@ -133,6 +133,7 @@ ss_redir() {
 	uci_get_by_name $main_server      server | sed "s/^/server=\//;s/$/\/208.67.222.222#443/" >> /var/dnsmasq.d/ss.conf
 	uci_get_by_name $udp_relay_server server | sed "s/^/server=\//;s/$/\/114.114.115.115/"    >> /var/dnsmasq.d/ss.conf
 	uci_get_by_name $udp_relay_server server | sed "s/^/server=\//;s/$/\/208.67.222.222#443/" >> /var/dnsmasq.d/ss.conf
+	( sort -u /var/dnsmasq.d/ss.conf > /var/dnsmasq.d/ss-servers.conf ) && rm -f /var/dnsmasq.d/ss.conf
 	/etc/init.d/dnsmasq restart
 
 	if [ "$udp_relay_server" = "$main_server" ]; then
@@ -180,7 +181,7 @@ start() {
 	ss_local
 	ss_tunnel
 	rm -f $CONFIG_FILE
-	add_cron
+	valid_server $(uci_get_by_type transparent_proxy main_server) && add_cron
 }
 
 delay_start() {
@@ -204,11 +205,12 @@ kill_all() {
 stop() {
 	/usr/bin/ss-rules -f
 	kill_all ssr-redir ssr-local ssr-tunnel
-	rm -f /var/dnsmasq.d/ss.conf
+	rm -f /var/dnsmasq.d/ss.conf /var/dnsmasq.d/ss-servers.conf 2>/dev/null
 	del_cron
 }
 
 add_cron() {
+	sed -i '/shadowsocks_watchdog/d' $CRON_FILE
 	echo '0   */3   * * *  rm -f /var/log/shadowsocks_watchdog.log 2>&1' >> $CRON_FILE
 	echo '*    *    * * * /etc/init.d/shadowsocks watchdog >> /var/log/shadowsocks_watchdog.log 2>&1' >> $CRON_FILE
 	/etc/init.d/cron restart
