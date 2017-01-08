@@ -28,7 +28,7 @@ o = s:option(Value, "wan_bp_list", translate("Bypassed IP List"))
 o:value("/dev/null", translate("NULL - As Global Proxy"))
 if chnroute then o:value(chnroute, translate("ChinaDNS CHNRoute")) end
 o.datatype = "or(file, '/dev/null')"
-o.default = chnroute or "/dev/null"
+o.default = "/dev/null"
 o.rmempty = false
 
 o = s:option(DynamicList, "wan_bp_ips", translate("Bypassed IP"))
@@ -72,7 +72,8 @@ o:value("0", translatef("Direct"))
 o:value("2", translatef("Global"))
 o.rmempty = false
 
-o = s:option(Value, "ipt_ext", translate("Additional Parameters"))
+o = s:option(Value, "ipt_ext", translate("Extra arguments"),
+	translate("Passes additional arguments to iptables. Use with care!"))
 o:value("", translate("None"))
 o:value("--dport 20:1023", translate("Proxy port numbers %s only") %{"20~1023"})
 o:value("-m multiport --dports 53,80,443", translate("Proxy port numbers %s only") %{"53,80,443"})
