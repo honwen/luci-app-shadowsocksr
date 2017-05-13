@@ -1,10 +1,6 @@
 OpenWrt LuCI for Shadowsocks-libev
 ===
 
-[![Download][download_badge]][download_url]
-[![Latest release][release_badge]][release_url]
-[![Gitter][gitter_badge]][gitter_url]
-
 简介
 ---
 
@@ -71,24 +67,18 @@ OpenWrt LuCI for Shadowsocks-libev
 tar xjf OpenWrt-SDK-ar71xx-for-linux-x86_64-gcc-4.8-linaro_uClibc-0.9.33.2.tar.bz2
 cd OpenWrt-SDK-ar71xx-*
 # Clone 项目
-git clone https://github.com/chenhw2/luci-app-shadowsocks.git package/luci-app-shadowsocks
+git clone https://github.com/chenhw2/luci-app-shadowsocks.git package/feeds/luci-app-shadowsocks
 # 编译 po2lmo (如果有po2lmo可跳过)
-pushd package/luci-app-shadowsocks/tools/po2lmo
+pushd package/feeds/luci-app-shadowsocks/tools/po2lmo
 make && sudo make install
 popd
 # 选择要编译的包 LuCI -> 3. Applications
 make menuconfig
 # 开始编译
-make package/luci-app-shadowsocks/compile V=99
+make package/feeds/luci-app-shadowsocks/compile V=99
 ```
 
- [download_badge]: https://api.bintray.com/packages/aa65535/opkg/luci-app-shadowsocks/images/download.svg
- [download_url]: https://bintray.com/aa65535/opkg/luci-app-shadowsocks/_latestVersion
- [release_badge]: https://img.shields.io/github/release/shadowsocks/luci-app-shadowsocks.svg
- [release_url]: https://github.com/shadowsocks/luci-app-shadowsocks/releases/latest
- [gitter_badge]: https://badges.gitter.im/shadowsocks/luci-app-shadowsocks.svg
- [gitter_url]: https://gitter.im/shadowsocks/luci-app-shadowsocks
- [openwrt-shadowsocks]: https://github.com/chenhw2/openwrt-shadowsocks
+ [openwrt-shadowsocks]: https://github.com/chenhw2/openwrt-shadowsocksr
  [openwrt-sdk]: https://wiki.openwrt.org/doc/howto/obtain.firmware.sdk
  [ss-rules]: https://github.com/shadowsocks/luci-app-shadowsocks/wiki/Instruction-of-ss-rules
  [Use-UCI-system]: https://github.com/shadowsocks/luci-app-shadowsocks/wiki/Use-UCI-system
