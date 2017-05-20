@@ -5,6 +5,7 @@ local m, s, o
 local shadowsocks = "shadowsocks"
 local uci = luci.model.uci.cursor()
 local nwm = require("luci.model.network").init()
+local gfwroute = luci.sys.call("command -v /etc/init.d/dnsmasq-extra >/dev/null") == 0
 local chnroute = uci:get_first("chinadns", "chinadns", "chnroute")
 local lan_ifaces = {}
 
@@ -26,8 +27,9 @@ s.anonymous = true
 
 o = s:option(Value, "wan_bp_list", translate("Bypassed IP List"))
 o:value("/dev/null", translate("NULL - As Global Proxy"))
+if gfwroute then o:value("/dev/flag_gfwlist", translate("Only Proxy GFW-List")) end
 if chnroute then o:value(chnroute, translate("ChinaDNS CHNRoute")) end
-o.datatype = "or(file, '/dev/null')"
+-- o.datatype = "or(file, '/dev/null')"
 o.default = "/dev/null"
 o.rmempty = false
 

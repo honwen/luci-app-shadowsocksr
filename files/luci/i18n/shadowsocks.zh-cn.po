@@ -91,6 +91,9 @@ msgstr "头部混淆主机名"
 msgid "Onetime Authentication"
 msgstr "一次验证"
 
+msgid "Only Proxy GFW-List"
+msgstr "仅代理中国大陆无法访问的地址"
+
 msgid "Passes additional arguments to iptables. Use with care!"
 msgstr "传递到iptables的额外参数。小心使用！"
 

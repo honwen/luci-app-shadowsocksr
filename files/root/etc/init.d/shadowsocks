@@ -105,6 +105,12 @@ start_rules() {
 		-a "$(config_foreach get_lan_hosts lan_hosts)" \
 		-e "$(uci_get_by_type access_control ipt_ext)" \
 		$(get_arg_out) $(get_arg_udp)
+
+	if [ "Z$?" = "Z0" -a "Z$(uci_get_by_type access_control wan_bp_list)" == "Z/dev/flag_gfwlist" ]; then
+		idx=$(($(iptables -t nat -L SS_SPEC_WAN_AC | sed -n -e '/ss_spec_dst_bp/=') -1))
+		iptables -t nat    -I SS_SPEC_WAN_AC $idx -m set ! --match-set gfwlist dst -j RETURN
+		iptables -t mangle -I SS_SPEC_WAN_AC $idx -m set ! --match-set gfwlist dst -j RETURN
+	fi
 }
 
 rules() {

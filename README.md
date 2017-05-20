@@ -57,6 +57,7 @@ OpenWrt LuCI for Shadowsocks-libev
 软件包的配置文件路径: `/etc/config/shadowsocks`  
 此文件为 UCI 配置文件, 配置方式可参考 [Wiki -> Use-UCI-system][Use-UCI-system] 和 [OpenWrt Wiki][uci]  
 透明代理的访问控制功能设置可参考 [Wiki -> LuCI-Access-Control][LuCI-Access-Control]  
+GFW-List模式正常使用需要依赖 [dnsmasq-extra][openwrt-dnsmasq-extra], 其中包括`DNS防污染`和`GFW-List`
 
 编译
 ---
@@ -85,3 +86,4 @@ make package/feeds/luci-app-shadowsocks/compile V=99
  [uci]: https://wiki.openwrt.org/doc/uci
  [LuCI-Access-Control]: https://github.com/shadowsocks/luci-app-shadowsocks/wiki/LuCI-Access-Control
  [ss-rules-without-ipset]: https://github.com/shadowsocks/luci-app-shadowsocks/blob/master/files/root/usr/bin/ss-rules-without-ipset
+ [openwrt-dnsmasq-extra]: https://github.com/chenhw2/openwrt-dnsmasq-extra
