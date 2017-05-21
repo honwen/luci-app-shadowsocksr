@@ -168,3 +168,15 @@ msgstr "内网区域"
 
 msgid "Zone WAN"
 msgstr "外网区域"
+
+msgid "GFW-List"
+msgstr "GFW 列表"
+
+msgid "Custom-List"
+msgstr "自定义列表"
+
+msgid "Be Careful!"
+msgstr "注意"
+
+msgid "Dnsmasq Config for ShadowsocksR. This may CRASH DNSMASQ!"
+msgstr "自定义 DNSMASQ 的 ShadowsocksR 列表, 这可能让DNSMASQ崩溃, 请参考以下的格式"
