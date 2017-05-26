@@ -109,8 +109,10 @@ start_rules() {
 	if [ "Z$?" = "Z0" -a "Z$(uci_get_by_type access_control wan_bp_list)" = "Z/dev/flag_gfwlist" ]; then
 		[ $(ipset list gfwlist | wc -l) -lt 1 ] && /etc/init.d/dnsmasq-extra restart
 		idx=$(($(iptables -t nat -L SS_SPEC_WAN_AC | sed -n -e '/ss_spec_dst_bp/=') -1))
-		iptables -t nat    -I SS_SPEC_WAN_AC $idx -m set ! --match-set gfwlist dst -j RETURN
-		iptables -t mangle -I SS_SPEC_WAN_AC $idx -m set ! --match-set gfwlist dst -j RETURN
+		iptables -t nat    -I SS_SPEC_WAN_AC $idx -m set ! --match-set gfwlist dst -j RETURN 2>/dev/null \
+			|| echo "# Transparent Proxy: TCP    NOT ENABLED"
+		iptables -t mangle -I SS_SPEC_WAN_AC $idx -m set ! --match-set gfwlist dst -j RETURN 2>/dev/null \
+			|| echo "# Transparent Proxy: UDP    NOT ENABLED"
 	fi
 }
 
