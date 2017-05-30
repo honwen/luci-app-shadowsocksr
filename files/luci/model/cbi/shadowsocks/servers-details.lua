@@ -5,6 +5,7 @@ local m, s, o
 local shadowsocks = "shadowsocks"
 local sid = arg[1]
 local encrypt_methods = {
+	"none",
 	"table",
 	"rc4",
 	"rc4-md5",
@@ -25,12 +26,12 @@ local encrypt_methods = {
 
 local plugin_protocols = {
 	"origin",
-	"verify_sha1",
 	"auth_sha1",
 	"auth_sha1_v2",
 	"auth_sha1_v4",
 	"auth_aes128_md5",
 	"auth_aes128_sha1",
+	"auth_chain_a",
 }
 
 local plugin_obfss = {
@@ -93,6 +94,9 @@ o.rmempty = false
 o = s:option(ListValue, "plugin_protocol", translate("PROTOCOL"))
 for _, v in ipairs(plugin_protocols) do o:value(v, v:upper()) end
 o.rmempty = false
+
+o = s:option(Value, "plugin_protocol_param", translate("PROTOCOL-PARAM"))
+o.rmempty = true
 
 o = s:option(ListValue, "plugin_obfs", translate("OBFS"))
 for _, v in ipairs(plugin_obfss) do o:value(v, v:upper()) end

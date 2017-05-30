@@ -26,7 +26,7 @@ if not has_redir and not has_local and not has_tunnel then
 end
 
 local function is_running(name)
-	return luci.sys.call("pidof %s >/dev/null" %{name}) == 0
+	return luci.sys.call("pgrep -x %s >/dev/null" %{name}) == 0
 end
 
 local function get_status(name)
