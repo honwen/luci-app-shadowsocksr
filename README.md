@@ -1,45 +1,49 @@
-OpenWrt LuCI for Shadowsocks-libev
+OpenWrt LuCI for ShadowsocksR-libev
 ===
 
 简介 ([预览][preview])
 ---
 
-本软件包是 [shadowsocks-libev][openwrt-shadowsocks] 的 LuCI 控制界面,
+本软件包是 [shadowsocksr-libev][openwrt-shadowsocksr] 的 LuCI 控制界面,
 方便用户控制和使用「透明代理」「SOCKS5 代理」「端口转发」功能.  
 
 软件包文件结构:
 ```
-/
 ├── etc/
 │   ├── config/
-│   │   └── shadowsocks                            // UCI 配置文件
+│   │   └── shadowsocks                             // UCI 配置文件
 │   │── init.d/
-│   │   └── shadowsocks                            // init 脚本
+│   │   └── shadowsocks                             // init 脚本
 │   └── uci-defaults/
-│       └── luci-shadowsocks                       // uci-defaults 脚本
+│       └── luci-shadowsocks                        // uci-defaults 脚本
 └── usr/
     ├── bin/
-    │   └── ss-rules                               // 生成代理转发规则的脚本
+    │   └── ss-rules                                // 生成代理转发规则的脚本
     └── lib/
         └── lua/
-            └── luci/                              // LuCI 部分
+            └── luci/                               // LuCI 部分
                 ├── controller/
-                │   └── shadowsocks.lua            // LuCI 菜单配置
-                ├── i18n/                          // LuCI 语言文件目录
+                │   └── shadowsocks.lua             // LuCI 菜单配置
+                ├── i18n/                           // LuCI 语言文件目录
                 │   └── shadowsocks.zh-cn.lmo
                 └── model/
-                    └── cbi/
+                    ├── cbi/
+                    |   └── shadowsocks/
+                    |       ├── general.lua         // LuCI 基本设置
+                    |       ├── servers.lua         // LuCI 服务器列表
+                    |       ├── servers-details.lua // LuCI 服务器管理
+                    |       ├── gfwlist-custom.lua  // LuCI 自定义GFW
+                    |       └── access-control.lua  // LuCI 访问控制
+                    └── view/
                         └── shadowsocks/
-                            ├── general.lua        // LuCI 基本设置
-                            ├── servers-manage.lua // LuCI 服务器管理
-                            └── access-control.lua // LuCI 访问控制
+                            └── gfwlist.htm         // LuCI GFW列表
 ```
 
 依赖
 ---
 
 软件包的正常使用需要依赖 `iptables` 和 `ipset`.  
-软件包不显式依赖 `shadowsocks-libev`, 会根据用户添加的可执行文件启用相应的功能.  
+软件包不显式依赖 `shadowsocksr-libev`, 会根据用户添加的可执行文件启用相应的功能.  
 GFW-List模式正常使用需要依赖 [dnsmasq-extra][openwrt-dnsmasq-extra], 其中包括`DNS防污染`和`GFW-List`  
 可执行文件可通过安装 [openwrt-shadowsocks][openwrt-shadowsocks] 中提供的 `shadowsocks-libev` 获得.  
 只有当文件存在时, 相应的功能才可被使用, 并显示相应的 LuCI 设置界面.  
@@ -79,7 +83,7 @@ make menuconfig
 make package/feeds/luci-app-shadowsocks/compile V=99
 ```
 
- [openwrt-shadowsocks]: https://github.com/chenhw2/openwrt-shadowsocksr
+ [openwrt-shadowsocksr]: https://github.com/chenhw2/openwrt-shadowsocksr
  [openwrt-sdk]: https://wiki.openwrt.org/doc/howto/obtain.firmware.sdk
  [ss-rules]: https://github.com/shadowsocks/luci-app-shadowsocks/wiki/Instruction-of-ss-rules
  [Use-UCI-system]: https://github.com/shadowsocks/luci-app-shadowsocks/wiki/Use-UCI-system
