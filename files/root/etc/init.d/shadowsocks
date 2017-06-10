@@ -143,7 +143,7 @@ ss_redir() {
 	uci_get_by_name $main_server      server | sed "s/^/server=\//;s/$/\/208.67.222.222#443/" >> /var/dnsmasq.d/ss.conf
 	uci_get_by_name $udp_relay_server server | sed "s/^/server=\//;s/$/\/114.114.115.115/"    >> /var/dnsmasq.d/ss.conf
 	uci_get_by_name $udp_relay_server server | sed "s/^/server=\//;s/$/\/208.67.222.222#443/" >> /var/dnsmasq.d/ss.conf
-	( sort -u /var/dnsmasq.d/ss.conf > /var/dnsmasq.d/ss-servers.conf ) && rm -f /var/dnsmasq.d/ss.conf
+	( sort -u /var/dnsmasq.d/ss.conf  | sed '/\/\//d' > /var/dnsmasq.d/ss-servers.conf ) && rm -f /var/dnsmasq.d/ss.conf
 	/etc/init.d/dnsmasq restart
 
 	if [ "$udp_relay_server" = "$main_server" ]; then
