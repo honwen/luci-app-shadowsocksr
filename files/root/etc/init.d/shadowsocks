@@ -243,12 +243,14 @@ watchdog(){
 
 	iptables -t nat -I OUTPUT -p tcp -d $GOOGLE -j REDIRECT --to-port $TRPORT
 	wget --spider --quiet --tries=1 --timeout=3 $GOOGLE/generate_204 2>/dev/null ||
-		curl --connect-timeout 2 --max-time 7 -s $GOOGLE/generate_204
+		curl --connect-timeout 2 --max-time 7 -s $GOOGLE/generate_204 2>/dev/null ||
+		wget -s -q -T3 $GOOGLE/generate_204
 	if [ "Z$?" = "Z0" ]; then
 		echo '['$LOGTIME'] ShadowsocksR No Problem.'
 	else
 		wget --spider --quiet --tries=1 --timeout=3 'www.qq.com/robots.txt' 2>/dev/null ||
-			curl --connect-timeout 2 --max-time 7 -s 'www.qq.com/robots.txt'
+			curl --connect-timeout 2 --max-time 7 -s 'www.qq.com/robots.txt' 2>/dev/null ||
+			wget -s -q -T3 'www.qq.com/robots.txt'
 		if [ "Z$?" = "Z0" ]; then
 			echo '['$LOGTIME'] Problem decteted, restarting ShadowsocksR...'
 			stop  >/dev/null 2>&1
