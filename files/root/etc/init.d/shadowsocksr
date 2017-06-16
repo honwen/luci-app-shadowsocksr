@@ -9,7 +9,7 @@
 START=90
 STOP=15
 
-NAME=shadowsocks
+NAME=shadowsocksr
 EXTRA_COMMANDS="rules watchdog"
 CONFIG_FILE=/var/etc/$NAME.json
 CRON_FILE=/etc/crontabs/root
@@ -95,7 +95,7 @@ EOF
 
 start_rules() {
 	config_load $NAME
-	/usr/bin/ss-rules \
+	/usr/bin/ssr-rules \
 		-s "$(config_foreach get_server_ips servers)" \
 		-l "$(uci_get_by_type transparent_proxy local_port 1234)" \
 		-i "$(uci_get_by_type access_control wan_bp_list)" \
@@ -109,20 +109,20 @@ start_rules() {
 
 	if [ "Z$?" = "Z0" -a "Z$(uci_get_by_type access_control wan_bp_list)" = "Z/dev/flag_gfwlist" ]; then
 		[ $(ipset list gfwlist | wc -l) -lt 1 ] && /etc/init.d/dnsmasq-extra restart
-		idx=$(($(iptables -t nat -L SS_SPEC_WAN_AC | sed -n -e '/ss_spec_dst_bp/=') -1))
-		iptables -t nat    -I SS_SPEC_WAN_AC $idx -m set ! --match-set gfwlist dst -j RETURN 2>/dev/null \
+		idx=$(($(iptables -t nat -L SSR_SPEC_WAN_AC | grep all | sed -n -e '/ssr_spec_dst_bp/=') +1))
+		iptables -t nat    -I SSR_SPEC_WAN_AC $idx -m set ! --match-set gfwlist dst -j RETURN 2>/dev/null \
 			|| echo "# Transparent Proxy: TCP    NOT ENABLED"
-		iptables -t mangle -I SS_SPEC_WAN_AC $idx -m set ! --match-set gfwlist dst -j RETURN 2>/dev/null \
+		iptables -t mangle -I SSR_SPEC_WAN_AC $idx -m set ! --match-set gfwlist dst -j RETURN 2>/dev/null \
 			|| echo "# Transparent Proxy: UDP    NOT ENABLED"
 	fi
 }
 
 rules() {
 	if !(pidof ssr-redir >/dev/null); then
-		logger -st $NAME -p3 "ss-redir not running."
+		logger -st $NAME -p3 "ssr-redir not running."
 		return 1
 	fi
-	start_rules || /usr/bin/ss-rules -f
+	start_rules || /usr/bin/ssr-rules -f
 }
 
 start_redir() {
@@ -132,18 +132,18 @@ start_redir() {
 		-f /var/run/ssr-redir$3.pid
 }
 
-ss_redir() {
+ssr_redir() {
 	command -v ssr-redir >/dev/null 2>&1 || return 1
 	local main_server=$(uci_get_by_type transparent_proxy main_server)
 	valid_server $main_server || return 1
 	local udp_relay_server=$(uci_get_by_type transparent_proxy udp_relay_server)
 	[ "$udp_relay_server" = "same" ] && udp_relay_server=$main_server
 
-	uci_get_by_name $main_server      server | sed "s/^/server=\//;s/$/\/114.114.115.115/"    >  /var/dnsmasq.d/ss.conf
-	uci_get_by_name $main_server      server | sed "s/^/server=\//;s/$/\/208.67.222.222#443/" >> /var/dnsmasq.d/ss.conf
-	uci_get_by_name $udp_relay_server server | sed "s/^/server=\//;s/$/\/114.114.115.115/"    >> /var/dnsmasq.d/ss.conf
-	uci_get_by_name $udp_relay_server server | sed "s/^/server=\//;s/$/\/208.67.222.222#443/" >> /var/dnsmasq.d/ss.conf
-	( sort -u /var/dnsmasq.d/ss.conf  | sed '/\/\//d' > /var/dnsmasq.d/ss-servers.conf ) && rm -f /var/dnsmasq.d/ss.conf
+	uci_get_by_name $main_server      server | sed "s/^/server=\//;s/$/\/114.114.115.115/"    >  /var/dnsmasq.d/ssr.conf
+	uci_get_by_name $main_server      server | sed "s/^/server=\//;s/$/\/208.67.222.222#443/" >> /var/dnsmasq.d/ssr.conf
+	uci_get_by_name $udp_relay_server server | sed "s/^/server=\//;s/$/\/114.114.115.115/"    >> /var/dnsmasq.d/ssr.conf
+	uci_get_by_name $udp_relay_server server | sed "s/^/server=\//;s/$/\/208.67.222.222#443/" >> /var/dnsmasq.d/ssr.conf
+	( sort -u /var/dnsmasq.d/ssr.conf  | sed '/\/\//d' > /var/dnsmasq.d/ssr-servers.conf ) && rm -f /var/dnsmasq.d/ssr.conf
 	/etc/init.d/dnsmasq restart
 
 	if [ "$udp_relay_server" = "$main_server" ]; then
@@ -165,7 +165,7 @@ start_local() {
 		-f /var/run/ssr-local.pid
 }
 
-ss_local() {
+ssr_local() {
 	command -v ssr-local >/dev/null 2>&1 || return 0
 	local server=$(uci_get_by_type socks5_proxy server)
 	valid_server $server && start_local $server
@@ -179,7 +179,7 @@ start_tunnel() {
 		-f /var/run/ssr-tunnel.pid
 }
 
-ss_tunnel() {
+ssr_tunnel() {
 	command -v ssr-tunnel >/dev/null 2>&1 || return 0
 	local server=$(uci_get_by_type port_forward server)
 	valid_server $server && start_tunnel $server
@@ -187,9 +187,9 @@ ss_tunnel() {
 
 start() {
 	mkdir -p /var/run /var/etc
-	ss_redir && rules
-	ss_local
-	ss_tunnel
+	ssr_redir && rules
+	ssr_local
+	ssr_tunnel
 	rm -f $CONFIG_FILE
 	valid_server $(uci_get_by_type transparent_proxy main_server) && add_cron
 }
@@ -213,21 +213,21 @@ kill_all() {
 }
 
 stop() {
-	/usr/bin/ss-rules -f
+	/usr/bin/ssr-rules -f
 	kill_all ssr-redir ssr-local ssr-tunnel
-	rm -f /var/dnsmasq.d/ss.conf /var/dnsmasq.d/ss-servers.conf 2>/dev/null
+	rm -f /var/dnsmasq.d/ssr.conf /var/dnsmasq.d/ssr-servers.conf 2>/dev/null
 	del_cron
 }
 
 add_cron() {
-	sed -i '/shadowsocks_watchdog/d' $CRON_FILE
-	echo '0   */3   * * *  rm -f /var/log/shadowsocks_watchdog.log 2>&1' >> $CRON_FILE
-	echo '*    *    * * * /etc/init.d/shadowsocks watchdog >> /var/log/shadowsocks_watchdog.log 2>&1' >> $CRON_FILE
+	sed -i '/shadowsocksr_watchdog/d' $CRON_FILE
+	echo '0   */3   * * *  rm -f /var/log/shadowsocksr_watchdog.log 2>&1' >> $CRON_FILE
+	echo '*    *    * * * /etc/init.d/shadowsocksr watchdog >> /var/log/shadowsocksr_watchdog.log 2>&1' >> $CRON_FILE
 	/etc/init.d/cron restart
 }
 
 del_cron() {
-	sed -i '/shadowsocks_watchdog/d' $CRON_FILE
+	sed -i '/shadowsocksr_watchdog/d' $CRON_FILE
 	/etc/init.d/cron restart
 }
 
@@ -235,24 +235,30 @@ watchdog(){
 	command -v ssr-redir >/dev/null 2>&1 || return 1
 	local main_server=$(uci_get_by_type transparent_proxy main_server)
 	valid_server $main_server || return 1
-
-	TRPORT=$(uci_get_by_type transparent_proxy local_port 1234)
-	GOOGLE=$(ping -4 www.gstatic.com -c 1 -w 5 | sed '1{s/[^(]*(//;s/).*//;q}')
-
 	LOGTIME=$(date "+%Y-%m-%d %H:%M:%S")
+	TRPORT=$(uci_get_by_type transparent_proxy local_port 1234)
+	GOOGLE=$(ping -4 www.gstatic.com -c 1 -w 5 2>/dev/null | sed '1{s/[^(]*(//;s/).*//;q}')
+
+	if [ "Z$GOOGLE" = "Z" ]; then
+		echo '['$LOGTIME'] Problem-DNS decteted, restarting shadowsocksR...'
+		[ -f /etc/init.d/dnsmasq-extra ] && /etc/init.d/dnsmasq-extra restart || /etc/init.d/dnsmasq restart
+		stop  >/dev/null 2>&1
+		start >/dev/null 2>&1
+		return 0
+	fi
 
 	iptables -t nat -I OUTPUT -p tcp -d $GOOGLE -j REDIRECT --to-port $TRPORT
 	wget --spider --quiet --tries=1 --timeout=3 $GOOGLE/generate_204 2>/dev/null ||
 		curl --connect-timeout 2 --max-time 7 -s $GOOGLE/generate_204 2>/dev/null ||
 		wget -s -q -T3 $GOOGLE/generate_204
 	if [ "Z$?" = "Z0" ]; then
-		echo '['$LOGTIME'] ShadowsocksR No Problem.'
+		echo '['$LOGTIME'] shadowsocksR No Problem.'
 	else
 		wget --spider --quiet --tries=1 --timeout=3 'www.qq.com/robots.txt' 2>/dev/null ||
 			curl --connect-timeout 2 --max-time 7 -s 'www.qq.com/robots.txt' 2>/dev/null ||
 			wget -s -q -T3 'www.qq.com/robots.txt'
 		if [ "Z$?" = "Z0" ]; then
-			echo '['$LOGTIME'] Problem decteted, restarting ShadowsocksR...'
+			echo '['$LOGTIME'] Problem decteted, restarting shadowsocksR...'
 			stop  >/dev/null 2>&1
 			start >/dev/null 2>&1
 		else

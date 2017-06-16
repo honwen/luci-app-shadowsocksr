@@ -2,7 +2,7 @@
 -- Licensed to the public under the GNU General Public License v3.
 
 local m, s, o
-local shadowsocks = "shadowsocks"
+local shadowsocksr = "shadowsocksr"
 local uci = luci.model.uci.cursor()
 local nwm = require("luci.model.network").init()
 local gfwroute = luci.sys.call("command -v /etc/init.d/dnsmasq-extra >/dev/null") == 0
@@ -19,7 +19,7 @@ for _, net in ipairs(nwm:get_networks()) do
 	end
 end
 
-m = Map(shadowsocks, "%s - %s" %{translate("ShadowSocks"), translate("Access Control")})
+m = Map(shadowsocksr, "%s - %s" %{translate("ShadowSocksR"), translate("Access Control")})
 
 -- [[ Zone WAN ]]--
 s = m:section(TypedSection, "access_control", translate("Zone WAN"))
@@ -63,9 +63,9 @@ for name, i18n in pairs(lan_ifaces) do
 end
 
 o = s:option(ListValue, "lan_target", translate("Proxy Type"))
-o:value("SS_SPEC_WAN_AC", translate("Normal"))
+o:value("SSR_SPEC_WAN_AC", translate("Normal"))
 o:value("RETURN", translate("Direct"))
-o:value("SS_SPEC_WAN_FW", translate("Global"))
+o:value("SSR_SPEC_WAN_FW", translate("Global"))
 o.rmempty = false
 
 o = s:option(ListValue, "self_proxy", translate("Self Proxy"))

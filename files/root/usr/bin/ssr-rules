@@ -6,11 +6,9 @@
 # See /LICENSE for more information.
 #
 
-# Warning: This script will be slow!
-
 usage() {
 	cat <<-EOF
-		Usage: ss-rules [options]
+		Usage: ssr-rules [options]
 
 		Valid options are:
 
@@ -39,34 +37,50 @@ EOF
 
 loger() {
 	# 1.alert 2.crit 3.err 4.warn 5.notice 6.info 7.debug
-	logger -st ss-rules[$$] -p$1 $2
+	logger -st ssr-rules[$$] -p$1 $2
 }
 
 flush_rules() {
-	iptables-save -c | grep -v "SS_SPEC" | iptables-restore -c
+	iptables-save -c | grep -v "SSR_SPEC" | iptables-restore -c
 	if command -v ip >/dev/null 2>&1; then
 		ip rule del fwmark 1 lookup 100 2>/dev/null
 		ip route del local default dev lo table 100 2>/dev/null
 	fi
+	for setname in $(ipset -n list | grep "ssr_spec"); do
+		ipset destroy $setname 2>/dev/null
+	done
 	FWI=$(uci get firewall.shadowsocks.path 2>/dev/null)
 	[ -n "$FWI" ] && echo '# firewall include file' >$FWI
+	return 0
+}
+
+ipset_init() {
+	ipset -! restore <<-EOF || return 1
+		create ssr_spec_src_ac hash:ip hashsize 64
+		create ssr_spec_src_bp hash:ip hashsize 64
+		create ssr_spec_src_fw hash:ip hashsize 64
+		create ssr_spec_dst_sp hash:net hashsize 64
+		create ssr_spec_dst_bp hash:net hashsize 64
+		create ssr_spec_dst_fw hash:net hashsize 64
+		$(gen_lan_host_ipset_entry)
+		$(gen_special_purpose_ip | sed -e "s/^/add ssr_spec_dst_sp /")
+		$(sed -e "s/^/add ssr_spec_dst_bp /" ${IGNORED:=/dev/null} 2>/dev/null)
+		$(for ip in $WAN_BP_IP; do echo "add ssr_spec_dst_bp $ip"; done)
+		$(for ip in $WAN_FW_IP; do echo "add ssr_spec_dst_fw $ip"; done)
+EOF
 	return 0
 }
 
 ipt_nat() {
 	include_ac_rules nat
 	ipt="iptables -t nat"
-	$ipt -A SS_SPEC_WAN_FW -p tcp \
+	$ipt -A SSR_SPEC_WAN_FW -p tcp \
 		-j REDIRECT --to-ports $local_port || return 1
 	if [ -n "$OUTPUT" ]; then
-		iptables-restore -n <<-EOF
-		*nat
-		:SS_SPEC_WAN_DG - [0:0]
-		$(gen_special_purpose_ip | sed -e "s/\(.*\)/-A SS_SPEC_WAN_DG -d \1 -j RETURN/")
-		-A SS_SPEC_WAN_DG -p tcp $EXT_ARGS -j $OUTPUT
-		-I OUTPUT 1 -p tcp -j SS_SPEC_WAN_DG
-		COMMIT
-EOF
+		$ipt -N SSR_SPEC_WAN_DG
+		$ipt -A SSR_SPEC_WAN_DG -m set --match-set ssr_spec_dst_sp dst -j RETURN
+		$ipt -A SSR_SPEC_WAN_DG -p tcp $EXT_ARGS -j $OUTPUT
+		$ipt -I OUTPUT 1 -p tcp -j SSR_SPEC_WAN_DG
 	fi
 	return $?
 }
@@ -80,7 +94,7 @@ ipt_mangle() {
 	ip rule add fwmark 1 lookup 100
 	ip route add local default dev lo table 100
 	include_ac_rules mangle
-	iptables -t mangle -A SS_SPEC_WAN_FW -p udp \
+	iptables -t mangle -A SSR_SPEC_WAN_FW -p udp \
 		-j TPROXY --on-port $LOCAL_PORT --tproxy-mark 0x01/0x01
 	return $?
 }
@@ -88,26 +102,26 @@ ipt_mangle() {
 export_ipt_rules() {
 	[ -n "$FWI" ] || return 0
 	cat <<-CAT >>$FWI
-	iptables-save -c | grep -v "SS_SPEC" | iptables-restore -c
+	iptables-save -c | grep -v "SSR_SPEC" | iptables-restore -c
 	iptables-restore -n <<-EOF
-	$(iptables-save | grep -E "SS_SPEC|^\*|^COMMIT" |\
+	$(iptables-save | grep -E "SSR_SPEC|^\*|^COMMIT" |\
 			sed -e "s/^-A \(OUTPUT\|PREROUTING\)/-I \1 1/")
 	EOF
 CAT
 	return $?
 }
 
-gen_lan_host_ipt_entry() {
+gen_lan_host_ipset_entry() {
 	for host in $LAN_HOSTS; do
 		case "${host:0:1}" in
 			n|N)
-				echo "3-A SS_SPEC_LAN_AC -s ${host:2} -j SS_SPEC_WAN_AC"
+				echo add ssr_spec_src_ac ${host:2}
 				;;
 			b|B)
-				echo "1-A SS_SPEC_LAN_AC -s ${host:2} -j RETURN"
+				echo add ssr_spec_src_bp ${host:2}
 				;;
 			g|G)
-				echo "2-A SS_SPEC_LAN_AC -s ${host:2} -j SS_SPEC_WAN_FW"
+				echo add ssr_spec_src_fw ${host:2}
 				;;
 		esac
 	done
@@ -143,40 +157,41 @@ include_ac_rules() {
 	local protocol=$([ "$1" = "mangle" ] && echo udp || echo tcp)
 	iptables-restore -n <<-EOF
 	*$1
-	:SS_SPEC_LAN_DG - [0:0]
-	:SS_SPEC_LAN_AC - [0:0]
-	:SS_SPEC_WAN_AC - [0:0]
-	:SS_SPEC_WAN_FW - [0:0]
-	$(gen_special_purpose_ip | sed -e "s/\(.*\)/-A SS_SPEC_LAN_DG -d \1 -j RETURN/")
-	-A SS_SPEC_LAN_DG -p $protocol $EXT_ARGS -j SS_SPEC_LAN_AC
-	$(gen_lan_host_ipt_entry | sort | sed -e s/^.//)
-	-A SS_SPEC_LAN_AC -j ${LAN_TARGET:=SS_SPEC_WAN_AC}
-	$(for ip in $WAN_FW_IP; do echo "-A SS_SPEC_WAN_AC -d $ip -j SS_SPEC_WAN_FW"; done)
-	$(sed -e "s/\(.*\)/-A SS_SPEC_WAN_AC -d \1 -j RETURN/" ${IGNORED:=/dev/null} 2>/dev/null)
-	$(for ip in $WAN_BP_IP; do echo "-A SS_SPEC_WAN_AC -d $ip -j RETURN"; done)
-	-A SS_SPEC_WAN_AC -j SS_SPEC_WAN_FW
+	:SSR_SPEC_LAN_DG - [0:0]
+	:SSR_SPEC_LAN_AC - [0:0]
+	:SSR_SPEC_WAN_AC - [0:0]
+	:SSR_SPEC_WAN_FW - [0:0]
+	-A SSR_SPEC_LAN_DG -m set --match-set ssr_spec_dst_sp dst -j RETURN
+	-A SSR_SPEC_LAN_DG -p $protocol $EXT_ARGS -j SSR_SPEC_LAN_AC
+	-A SSR_SPEC_LAN_AC -m set --match-set ssr_spec_src_bp src -j RETURN
+	-A SSR_SPEC_LAN_AC -m set --match-set ssr_spec_src_fw src -j SSR_SPEC_WAN_FW
+	-A SSR_SPEC_LAN_AC -m set --match-set ssr_spec_src_ac src -j SSR_SPEC_WAN_AC
+	-A SSR_SPEC_LAN_AC -j ${LAN_TARGET:=SSR_SPEC_WAN_AC}
+	-A SSR_SPEC_WAN_AC -m set --match-set ssr_spec_dst_fw dst -j SSR_SPEC_WAN_FW
+	-A SSR_SPEC_WAN_AC -m set --match-set ssr_spec_dst_bp dst -j RETURN
+	-A SSR_SPEC_WAN_AC -j SSR_SPEC_WAN_FW
 	$(gen_prerouting_rules $protocol)
 	COMMIT
 EOF
 }
 
 gen_prerouting_rules() {
-	[ -z "$IFNAMES" ] && echo -I PREROUTING 1 -p $1 -j SS_SPEC_LAN_DG
+	[ -z "$IFNAMES" ] && echo -I PREROUTING 1 -p $1 -j SSR_SPEC_LAN_DG
 	for ifname in $IFNAMES; do
-		echo -I PREROUTING 1 -i $ifname -p $1 -j SS_SPEC_LAN_DG
+		echo -I PREROUTING 1 -i $ifname -p $1 -j SSR_SPEC_LAN_DG
 	done
 }
 
 while getopts ":s:l:S:L:i:b:w:I:d:a:e:oOuUfh" arg; do
 	case "$arg" in
 		s)
-			server=$(for ip in $OPTARG; do echo $ip; done)
+			server=$(for host in $OPTARG; do ping -4 $host -c 1 -w 5 | sed '1{s/[^(]*(//;s/).*//;q}' ; done)
 			;;
 		l)
 			local_port=$OPTARG
 			;;
 		S)
-			SERVER=$(for ip in $OPTARG; do echo $ip; done)
+			SERVER=$(for host in $OPTARG; do ping -4 $host -c 1 -w 5 | sed '1{s/[^(]*(//;s/).*//;q}' ; done)
 			;;
 		L)
 			LOCAL_PORT=$OPTARG
@@ -203,10 +218,10 @@ while getopts ":s:l:S:L:i:b:w:I:d:a:e:oOuUfh" arg; do
 			EXT_ARGS=$OPTARG
 			;;
 		o)
-			OUTPUT=SS_SPEC_WAN_AC
+			OUTPUT=SSR_SPEC_WAN_AC
 			;;
 		O)
-			OUTPUT=SS_SPEC_WAN_FW
+			OUTPUT=SSR_SPEC_WAN_FW
 			;;
 		u)
 			TPROXY=1
@@ -234,7 +249,7 @@ elif [ "$TPROXY" = 2 ]; then
 	: ${LOCAL_PORT:?"You must assign a port for the udp relay server."}
 fi
 
-flush_rules && ipt_nat && ipt_mangle && export_ipt_rules
+flush_rules && ipset_init && ipt_nat && ipt_mangle && export_ipt_rules
 RET=$?
 [ "$RET" = 0 ] || loger 3 "Start failed!"
 exit $RET

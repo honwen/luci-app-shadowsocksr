@@ -2,7 +2,7 @@
 -- Licensed to the public under the GNU General Public License v3.
 
 local m, s, o
-local shadowsocks = "shadowsocks"
+local shadowsocksr = "shadowsocksr"
 local uci = luci.model.uci.cursor()
 local servers = {}
 
@@ -21,8 +21,8 @@ end
 local has_redir, has_local, has_tunnel = has_ss_bin()
 
 if not has_redir and not has_local and not has_tunnel then
-	return Map(shadowsocks, "%s - %s" %{translate("ShadowSocks"),
-		translate("General Settings")}, '<b style="color:red">shadowsocks-libev binary file not found.</b>')
+	return Map(shadowsocksr, "%s - %s" %{translate("ShadowSocksR"),
+		translate("General Settings")}, '<b style="color:red">shadowsocksr-libev binary file not found.</b>')
 end
 
 local function is_running(name)
@@ -33,13 +33,13 @@ local function get_status(name)
 	return is_running(name) and translate("RUNNING") or translate("NOT RUNNING")
 end
 
-uci:foreach(shadowsocks, "servers", function(s)
+uci:foreach(shadowsocksr, "servers", function(s)
 	if s.server and s.server_port then
 		servers[#servers+1] = {name = s[".name"], alias = s.alias or "%s:%s" %{s.server, s.server_port}}
 	end
 end)
 
-m = Map(shadowsocks, "%s - %s" %{translate("ShadowSocks"), translate("General Settings")})
+m = Map(shadowsocksr, "%s - %s" %{translate("ShadowSocksR"), translate("General Settings")})
 
 -- [[ Running Status ]]--
 s = m:section(TypedSection, "general", translate("Running Status"))

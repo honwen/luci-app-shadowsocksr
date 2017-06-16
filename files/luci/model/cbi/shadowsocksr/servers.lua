@@ -2,9 +2,9 @@
 -- Licensed to the public under the GNU General Public License v3.
 
 local m, s, o
-local shadowsocks = "shadowsocks"
+local shadowsocksr = "shadowsocksr"
 
-m = Map(shadowsocks, "%s - %s" %{translate("ShadowSocks"), translate("Servers Manage")})
+m = Map(shadowsocksr, "%s - %s" %{translate("ShadowSocksR"), translate("Servers Manage")})
 
 -- [[ Servers Manage ]]--
 s = m:section(TypedSection, "servers")
@@ -12,7 +12,7 @@ s.anonymous = true
 s.addremove = true
 s.sortable = true
 s.template = "cbi/tblsection"
-s.extedit = luci.dispatcher.build_url("admin/services/shadowsocks/servers/%s")
+s.extedit = luci.dispatcher.build_url("admin/services/shadowsocksr/servers/%s")
 function s.create(...)
 	local sid = TypedSection.create(...)
 	if sid then

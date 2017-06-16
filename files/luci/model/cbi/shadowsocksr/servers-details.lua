@@ -2,7 +2,7 @@
 -- Licensed to the public under the GNU General Public License v3.
 
 local m, s, o
-local shadowsocks = "shadowsocks"
+local shadowsocksr = "shadowsocksr"
 local sid = arg[1]
 local encrypt_methods = {
 	"none",
@@ -49,10 +49,10 @@ local function support_fast_open()
 	return luci.sys.exec("cat /proc/sys/net/ipv4/tcp_fastopen 2>/dev/null"):trim() == "3"
 end
 
-m = Map(shadowsocks, "%s - %s" %{translate("ShadowSocks"), translate("Edit Server")})
-m.redirect = luci.dispatcher.build_url("admin/services/shadowsocks/servers")
+m = Map(shadowsocksr, "%s - %s" %{translate("ShadowSocksR"), translate("Edit Server")})
+m.redirect = luci.dispatcher.build_url("admin/services/shadowsocksr/servers")
 
-if m.uci:get(shadowsocks, sid) ~= "servers" then
+if m.uci:get(shadowsocksr, sid) ~= "servers" then
 	luci.http.redirect(m.redirect)
 	return
 end
