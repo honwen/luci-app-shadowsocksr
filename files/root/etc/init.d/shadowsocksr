@@ -235,30 +235,37 @@ watchdog(){
 	command -v ssr-redir >/dev/null 2>&1 || return 1
 	local main_server=$(uci_get_by_type transparent_proxy main_server)
 	valid_server $main_server || return 1
+
 	LOGTIME=$(date "+%Y-%m-%d %H:%M:%S")
 	TRPORT=$(uci_get_by_type transparent_proxy local_port 1234)
-	GOOGLE=$(ping -4 www.gstatic.com -c 1 -w 5 2>/dev/null | sed '1{s/[^(]*(//;s/).*//;q}')
+	GOOGLE=$(ping -4 accounts.gstatic.com -c 1 -w 5 2>/dev/null | sed '1{s/[^(]*(//;s/).*//;q}')
+	IPINCN=119.29.29.29 #DNSPOD HTTPDNS
 
 	if [ "Z$GOOGLE" = "Z" ]; then
-		echo '['$LOGTIME'] Problem-DNS decteted, restarting shadowsocksR...'
-		[ -f /etc/init.d/dnsmasq-extra ] && /etc/init.d/dnsmasq-extra restart || /etc/init.d/dnsmasq restart
+		echo "[${LOGTIME}] Problem-DNS decteted, restarting ${NAME}..."
+		[ -x /etc/init.d/dnsmasq-extra ] && /etc/init.d/dnsmasq-extra restart || /etc/init.d/dnsmasq restart
 		stop  >/dev/null 2>&1
 		start >/dev/null 2>&1
 		return 0
 	fi
 
+	cat_connect(){
+		url=$1
+		# wget -> busybox wget
+		( wget -qO- --tries=3 --timeout=4 $url >/dev/null 2>&1 ) ||
+			( busybox wget -qO- -T10 $url >/dev/null 2>&1 )
+	}
+
 	iptables -t nat -I OUTPUT -p tcp -d $GOOGLE -j REDIRECT --to-port $TRPORT
-	wget --spider --quiet --tries=1 --timeout=3 $GOOGLE/generate_204 2>/dev/null ||
-		curl --connect-timeout 2 --max-time 7 -s $GOOGLE/generate_204 2>/dev/null ||
-		wget -s -q -T3 $GOOGLE/generate_204
+	iptables -t nat -I OUTPUT -p tcp -d $IPINCN -j RETURN
+	cat_connect $GOOGLE/generate_204
 	if [ "Z$?" = "Z0" ]; then
-		echo '['$LOGTIME'] shadowsocksR No Problem.'
+		echo "[${LOGTIME}] ${NAME} No Problem."
 	else
-		wget --spider --quiet --tries=1 --timeout=3 'www.qq.com/robots.txt' 2>/dev/null ||
-			curl --connect-timeout 2 --max-time 7 -s 'www.qq.com/robots.txt' 2>/dev/null ||
-			wget -s -q -T3 'www.qq.com/robots.txt'
+		cat_connect '119.29.29.29/d?dn=jd.com'
 		if [ "Z$?" = "Z0" ]; then
-			echo '['$LOGTIME'] Problem decteted, restarting shadowsocksR...'
+			echo "[${LOGTIME}] Problem decteted, restarting ${NAME}..."
+			[ -x /etc/init.d/haproxy-tcp ] && /etc/init.d/haproxy-tcp restart
 			stop  >/dev/null 2>&1
 			start >/dev/null 2>&1
 		else
@@ -267,5 +274,6 @@ watchdog(){
 	fi
 
 	iptables -t nat -D OUTPUT -p tcp -d $GOOGLE -j REDIRECT --to-port $TRPORT
+	iptables -t nat -D OUTPUT -p tcp -d $IPINCN -j RETURN
 	return 0
 }
