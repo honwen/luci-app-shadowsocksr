@@ -41,7 +41,12 @@ loger() {
 }
 
 flush_rules() {
-	iptables-save -c | grep -v "SSR_SPEC" | iptables-restore -c
+	if [ 0 -lt $(uname -a | grep -ce "[Gg]argoyle") ]; then
+		iptables-save -c | grep -v "SSR_SPEC" | sed '/[^ ]--/d' | uniq | iptables-restore -c
+		ls /etc/init.d/*_gargoyle 2>/dev/null | while read init; do $init restart >/dev/null 2>&1; done
+	else
+		iptables-save -c | grep -v "SSR_SPEC" | uniq | iptables-restore -c
+	fi
 	if command -v ip >/dev/null 2>&1; then
 		ip rule del fwmark 1 lookup 100 2>/dev/null
 		ip route del local default dev lo table 100 2>/dev/null
@@ -49,7 +54,7 @@ flush_rules() {
 	for setname in $(ipset -n list | grep "ssr_spec"); do
 		ipset destroy $setname 2>/dev/null
 	done
-	FWI=$(uci get firewall.shadowsocks.path 2>/dev/null)
+	FWI=$(uci get firewall.shadowsocksr.path 2>/dev/null)
 	[ -n "$FWI" ] && echo '# firewall include file' >$FWI
 	return 0
 }
@@ -102,7 +107,12 @@ ipt_mangle() {
 export_ipt_rules() {
 	[ -n "$FWI" ] || return 0
 	cat <<-CAT >>$FWI
-	iptables-save -c | grep -v "SSR_SPEC" | iptables-restore -c
+	if [ 0 -lt $(uname -a | grep -ce "[Gg]argoyle") ]; then
+		iptables-save -c | grep -v "SSR_SPEC" | sed '/[^ ]--/d' | uniq | iptables-restore -c
+		ls /etc/init.d/*_gargoyle 2>/dev/null | while read init; do $init restart >/dev/null 2>&1; done
+	else
+		iptables-save -c | grep -v "SSR_SPEC" | uniq | iptables-restore -c
+	fi
 	iptables-restore -n <<-EOF
 	$(iptables-save | grep -E "SSR_SPEC|^\*|^COMMIT" |\
 			sed -e "s/^-A \(OUTPUT\|PREROUTING\)/-I \1 1/")
