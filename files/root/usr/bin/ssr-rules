@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Copyright (C) 2016 Jian Chang <aa65535@live.com>
+# Copyright (C) 2014-2017 Jian Chang <aa65535@live.com>
 #
 # This is free software, licensed under the GNU General Public License v3.
 # See /LICENSE for more information.
@@ -16,14 +16,15 @@ usage() {
 		    -l <local_port>         port number of shadowsocks local server
 		    -S <server_ips>         ip address of shadowsocks remote UDP server
 		    -L <local_port>         port number of shadowsocks local UDP server
-		    -i <ip_list_file>       a file whose content is bypassed ip list
+		    -B <ip_list_file>       a file whose content is bypassed ip list
 		    -b <wan_ips>            wan ip of will be bypassed
+		    -W <ip_list_file>       a file whose content is forwarded ip list
 		    -w <wan_ips>            wan ip of will be forwarded
 		    -I <interface>          proxy only for the given interface
 		    -d <target>             the default target of lan access control
 		    -a <lan_hosts>          lan ip of access control, need a prefix to
 		                            define proxy type
-		    -e <extra_options>      extra options for iptables
+		    -e <extra_args>         extra arguments for iptables
 		    -o                      apply the rules to the OUTPUT chain
 		    -O                      apply the global rules to the OUTPUT chain
 		    -u                      enable udprelay mode, TPROXY is required
@@ -40,8 +41,19 @@ loger() {
 	logger -st ssr-rules[$$] -p$1 $2
 }
 
+fw_reinit() {
+	uci -q show firewall | sed -n 's/.*path=//p' | sed -n '/adbyby\|koolproxy\|dnsmasq/p' | tr -d \' | while read init; do
+		sh $init restart >/dev/null 2>&1
+	done
+	return 0
+}
+
 flush_rules() {
-	iptables-save -c | grep -v "SSR_SPEC" | iptables-restore -c
+	iptables-save -c | grep -v "SSR_SPEC" | sed '/[^ ]--/d' | uniq | iptables-restore -c
+	uci -q show firewall | sed -n 's/.*path=//p' | sed -n '/gargoyle/p' | tr -d \' | while read init; do
+		sh $init restart >/dev/null 2>&1
+	done
+
 	if command -v ip >/dev/null 2>&1; then
 		ip rule del fwmark 1 lookup 100 2>/dev/null
 		ip route del local default dev lo table 100 2>/dev/null
@@ -49,7 +61,7 @@ flush_rules() {
 	for setname in $(ipset -n list | grep "ssr_spec"); do
 		ipset destroy $setname 2>/dev/null
 	done
-	FWI=$(uci get firewall.shadowsocks.path 2>/dev/null)
+	FWI=$(uci get firewall.shadowsocksr.path 2>/dev/null)
 	[ -n "$FWI" ] && echo '# firewall include file' >$FWI
 	return 0
 }
@@ -64,8 +76,9 @@ ipset_init() {
 		create ssr_spec_dst_fw hash:net hashsize 64
 		$(gen_lan_host_ipset_entry)
 		$(gen_special_purpose_ip | sed -e "s/^/add ssr_spec_dst_sp /")
-		$(sed -e "s/^/add ssr_spec_dst_bp /" ${IGNORED:=/dev/null} 2>/dev/null)
+		$(sed -e "s/^/add ssr_spec_dst_bp /" ${WAN_BP_LIST:=/dev/null} 2>/dev/null)
 		$(for ip in $WAN_BP_IP; do echo "add ssr_spec_dst_bp $ip"; done)
+		$(sed -e "s/^/add ssr_spec_dst_fw /" ${WAN_FW_LIST:=/dev/null} 2>/dev/null)
 		$(for ip in $WAN_FW_IP; do echo "add ssr_spec_dst_fw $ip"; done)
 EOF
 	return 0
@@ -102,11 +115,17 @@ ipt_mangle() {
 export_ipt_rules() {
 	[ -n "$FWI" ] || return 0
 	cat <<-CAT >>$FWI
-	iptables-save -c | grep -v "SSR_SPEC" | iptables-restore -c
+	iptables-save -c | grep -v "SSR_SPEC" | sed '/[^ ]--/d' | uniq | iptables-restore -c
+
 	iptables-restore -n <<-EOF
 	$(iptables-save | grep -E "SSR_SPEC|^\*|^COMMIT" |\
 			sed -e "s/^-A \(OUTPUT\|PREROUTING\)/-I \1 1/")
 	EOF
+
+	uci -q show firewall | sed -n 's/.*path=//p' | sed -n '/gargoyle\|adbyby\|koolproxy\|dnsmasq/p' | tr -d \' | while read init; do
+		sh \$init restart >/dev/null 2>&1
+	done
+	return 0
 CAT
 	return $?
 }
@@ -154,6 +173,7 @@ EOF
 }
 
 include_ac_rules() {
+	ipt_chain=$1
 	local protocol=$([ "$1" = "mangle" ] && echo udp || echo tcp)
 	iptables-restore -n <<-EOF
 	*$1
@@ -173,6 +193,11 @@ include_ac_rules() {
 	$(gen_prerouting_rules $protocol)
 	COMMIT
 EOF
+	if [ "Z${WAN_BP_LIST}" = "Z/dev/flag_gfwlist" ]; then
+		[ $(ipset list -n | grep -c gfwlist) -lt 1 ] && /etc/init.d/dnsmasq-extra restart
+		idx=$(($(iptables -t $ipt_chain -L SSR_SPEC_WAN_AC | grep all | sed -n -e '/ss_spec_dst_bp/=') +1))
+		iptables -t $ipt_chain    -I SSR_SPEC_WAN_AC $idx -m set ! --match-set gfwlist dst -j RETURN
+	fi
 }
 
 gen_prerouting_rules() {
@@ -182,25 +207,32 @@ gen_prerouting_rules() {
 	done
 }
 
-while getopts ":s:l:S:L:i:b:w:I:d:a:e:oOuUfh" arg; do
+while getopts ":s:l:S:L:B:b:W:w:I:d:a:e:oOuUfh" arg; do
 	case "$arg" in
 		s)
+			# wait-for-dns, timeout 10s
+			for _ in `seq 10`; do if ping -4 t.cn -c 1 -w 5 >/dev/null 2>&1; then break; else sleep 1; fi; done
 			server=$(for host in $OPTARG; do ping -4 $host -c 1 -w 5 | sed '1{s/[^(]*(//;s/).*//;q}' ; done)
 			;;
 		l)
 			local_port=$OPTARG
 			;;
 		S)
-			SERVER=$(for host in $OPTARG; do ping -4 $host -c 1 -w 5 | sed '1{s/[^(]*(//;s/).*//;q}' ; done)
+			# wait-for-dns, timeout 10s
+			for _ in `seq 10`; do if ping -4 t.cn -c 1 -w 5 >/dev/null 2>&1; then break; else sleep 1; fi; done
+			server=$(for host in $OPTARG; do ping -4 $host -c 1 -w 5 | sed '1{s/[^(]*(//;s/).*//;q}' ; done)
 			;;
 		L)
 			LOCAL_PORT=$OPTARG
 			;;
-		i)
-			IGNORED=$OPTARG
+		B)
+			WAN_BP_LIST=$OPTARG
 			;;
 		b)
 			WAN_BP_IP=$OPTARG
+			;;
+		W)
+			WAN_FW_LIST=$OPTARG
 			;;
 		w)
 			WAN_FW_IP=$OPTARG
@@ -249,7 +281,7 @@ elif [ "$TPROXY" = 2 ]; then
 	: ${LOCAL_PORT:?"You must assign a port for the udp relay server."}
 fi
 
-flush_rules && ipset_init && ipt_nat && ipt_mangle && export_ipt_rules
+flush_rules && ipset_init && ipt_nat && ipt_mangle && fw_reinit && export_ipt_rules
 RET=$?
 [ "$RET" = 0 ] || loger 3 "Start failed!"
 exit $RET
