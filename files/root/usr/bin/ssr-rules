@@ -212,7 +212,7 @@ while getopts ":s:l:S:L:B:b:W:w:I:d:a:e:oOuUfh" arg; do
 		s)
 			# wait-for-dns, timeout 10s
 			for _ in `seq 10`; do if ping -4 t.cn -c 1 -w 5 >/dev/null 2>&1; then break; else sleep 1; fi; done
-			server=$(for host in $OPTARG; do ping -4 $host -c 1 -w 5 | sed '1{s/[^(]*(//;s/).*//;q}' ; done)
+			server=$(for host in $OPTARG; do ping $host -c 1 -w 5 | sed '1{s/[^(]*(//;s/).*//;q}' ; done)
 			;;
 		l)
 			local_port=$OPTARG
@@ -220,7 +220,7 @@ while getopts ":s:l:S:L:B:b:W:w:I:d:a:e:oOuUfh" arg; do
 		S)
 			# wait-for-dns, timeout 10s
 			for _ in `seq 10`; do if ping -4 t.cn -c 1 -w 5 >/dev/null 2>&1; then break; else sleep 1; fi; done
-			server=$(for host in $OPTARG; do ping -4 $host -c 1 -w 5 | sed '1{s/[^(]*(//;s/).*//;q}' ; done)
+			server=$(for host in $OPTARG; do ping $host -c 1 -w 5 | sed '1{s/[^(]*(//;s/).*//;q}' ; done)
 			;;
 		L)
 			LOCAL_PORT=$OPTARG
