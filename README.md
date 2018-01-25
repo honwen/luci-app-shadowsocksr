@@ -44,7 +44,7 @@ OpenWrt LuCI for ShadowSocksR-libev
 
 软件包的正常使用需要依赖 `iptables` 和 `ipset`.  
 软件包不显式依赖 `shadowsocksr-libev`, 会根据用户添加的可执行文件启用相应的功能.  
-GFW-List模式正常使用需要依赖 [dnsmasq-extra][openwrt-dnsmasq-extra], 其中包括`DNS防污染`和`GFW-List`  
+**GFW-List模式 正常使用需要依赖 [dnsmasq-extra][openwrt-dnsmasq-extra], 其中包括`DNS防污染`和`GFW-List`**  
 可执行文件可通过安装 [openwrt-shadowsocksr][openwrt-shadowsocksr] 中提供的 `shadowsocksr-libev` 获得.  
 只有当文件存在时, 相应的功能才可被使用, 并显示相应的 LuCI 设置界面.  
 

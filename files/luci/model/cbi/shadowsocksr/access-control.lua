@@ -9,6 +9,28 @@ local gfwroute = luci.sys.call("command -v /etc/init.d/dnsmasq-extra >/dev/null"
 local chnroute = uci:get_first("chinadns", "chinadns", "chnroute")
 local lan_ifaces = {}
 
+local function ipv4_hints(callback)
+	local hosts = {}
+	uci:foreach("dhcp", "dnsmasq", function(s)
+		if s.leasefile and nixio.fs.access(s.leasefile) then
+			for e in io.lines(s.leasefile) do
+				mac, ip, name = e:match("^%d+ (%S+) (%S+) (%S+)")
+				if mac and ip then
+					hosts[ip] = name ~= "*" and name or mac:upper()
+				end
+			end
+		end
+	end)
+	uci:foreach("dhcp", "host", function(s)
+		for mac in luci.util.imatch(s.mac) do
+			hosts[s.ip] = s.name or mac:upper()
+		end
+	end)
+	for ip, name in pairs(hosts) do
+		callback(ip, name)
+	end
+end
+
 for _, net in ipairs(nwm:get_networks()) do
 	if net:name() ~= "loopback" and string.find(net:name(), "wan") ~= 1 then
 		net = nwm:get_network(net:name())
@@ -91,10 +113,8 @@ s.addremove = true
 s.anonymous = true
 
 o = s:option(Value, "host", translate("Host"))
-luci.ip.neighbors({family = 4}, function(neighbor)
-	if neighbor.reachable then
-		o:value(neighbor.dest:string(), "%s (%s)" %{neighbor.dest:string(), neighbor.mac})
-	end
+ipv4_hints(function(ip, name)
+	o:value(ip, "%s (%s)" %{ip, name})
 end)
 o.datatype = "ip4addr"
 o.rmempty = false
