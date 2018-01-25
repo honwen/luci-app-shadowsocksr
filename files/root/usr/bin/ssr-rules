@@ -195,8 +195,8 @@ include_ac_rules() {
 EOF
 	if [ "Z${WAN_BP_LIST}" = "Z/dev/flag_gfwlist" ]; then
 		[ $(ipset list -n | grep -c gfwlist) -lt 1 ] && /etc/init.d/dnsmasq-extra restart
-		idx=$(($(iptables -t $ipt_chain -L SSR_SPEC_WAN_AC | grep all | sed -n -e '/ss_spec_dst_bp/=') +1))
-		iptables -t $ipt_chain    -I SSR_SPEC_WAN_AC $idx -m set ! --match-set gfwlist dst -j RETURN
+		idx=$(($(iptables -t $ipt_chain -L SSR_SPEC_WAN_AC | grep all | sed -n -e '/ssr_spec_dst_bp/=') +1))
+		iptables -t $ipt_chain -I SSR_SPEC_WAN_AC $idx -m set ! --match-set gfwlist dst -j RETURN
 	fi
 }
 
@@ -210,17 +210,13 @@ gen_prerouting_rules() {
 while getopts ":s:l:S:L:B:b:W:w:I:d:a:e:oOuUfh" arg; do
 	case "$arg" in
 		s)
-			# wait-for-dns, timeout 10s
-			for _ in `seq 10`; do if ping -4 t.cn -c 1 -w 5 >/dev/null 2>&1; then break; else sleep 1; fi; done
-			server=$(for host in $OPTARG; do ping -4 $host -c 1 -w 5 | sed '1{s/[^(]*(//;s/).*//;q}' ; done)
+			server=$(for host in $OPTARG; do ping $host -c 1 -w 1 | sed '1{s/[^(]*(//;s/).*//;q}' ; done)
 			;;
 		l)
 			local_port=$OPTARG
 			;;
 		S)
-			# wait-for-dns, timeout 10s
-			for _ in `seq 10`; do if ping -4 t.cn -c 1 -w 5 >/dev/null 2>&1; then break; else sleep 1; fi; done
-			server=$(for host in $OPTARG; do ping -4 $host -c 1 -w 5 | sed '1{s/[^(]*(//;s/).*//;q}' ; done)
+			SERVER=$(for host in $OPTARG; do ping $host -c 1 -w 1 | sed '1{s/[^(]*(//;s/).*//;q}' ; done)
 			;;
 		L)
 			LOCAL_PORT=$OPTARG

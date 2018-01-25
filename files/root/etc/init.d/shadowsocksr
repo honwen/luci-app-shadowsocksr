@@ -13,6 +13,7 @@ NAME=shadowsocksr
 EXTRA_COMMANDS="rules watchdog"
 CONFIG_FILE=/var/etc/$NAME.json
 CRON_FILE=/etc/crontabs/root
+DNSMASQDIR=/var/dnsmasq.d
 
 uci_get_by_name() {
 	local ret=$(uci get $NAME.$1.$2 2>/dev/null)
@@ -93,6 +94,29 @@ gen_config_file() {
 EOF
 }
 
+ssr_pre() {
+	DNSMASQCONF=$DNSMASQDIR/ssr.conf
+	echo "all-servers" > $DNSMASQCONF
+	config_load $NAME
+	for server in $(config_foreach get_server_ips servers); do
+		cat <<-EOF >> $DNSMASQCONF
+		ipset=/${server}/ssr_spec_dst_sp
+		server=/${server}/#
+		server=/${server}/114.114.114.114
+		server=/${server}/114.114.115.115
+		server=/${server}/208.67.220.220#5353
+		server=/${server}/208.67.222.222#443
+EOF
+	done
+
+	( sort -u $DNSMASQCONF | sed '/\/\//d; /\/127.0.0.1\//d' > /var/dnsmasq.d/ssr-servers.conf ) && rm -f $DNSMASQCONF
+
+	echo "server=/accounts.gstatic.com/127.0.0.1#$(uci_get_by_type port_forward local_port 5300)" >> /var/dnsmasq.d/ssr-servers.conf
+	/etc/init.d/dnsmasq restart >/dev/null 2>&1
+	# wait-for-dns, timeout 10s
+	for _ in `seq 10`; do if ping -4 t.cn -c 1 -w 1 >/dev/null 2>&1; then break; fi; done
+}
+
 start_rules() {
 	config_load $NAME
 	/usr/bin/ssr-rules \
@@ -130,14 +154,6 @@ ssr_redir() {
 	valid_server $main_server || return 1
 	local udp_relay_server=$(uci_get_by_type transparent_proxy udp_relay_server)
 	[ "$udp_relay_server" = "same" ] && udp_relay_server=$main_server
-
-	uci_get_by_name $main_server      server | sed "s/^/server=\//;s/$/\/114.114.115.115/"    >  /var/dnsmasq.d/ssr.conf
-	uci_get_by_name $main_server      server | sed "s/^/server=\//;s/$/\/208.67.222.222#443/" >> /var/dnsmasq.d/ssr.conf
-	uci_get_by_name $udp_relay_server server | sed "s/^/server=\//;s/$/\/114.114.115.115/"    >> /var/dnsmasq.d/ssr.conf
-	uci_get_by_name $udp_relay_server server | sed "s/^/server=\//;s/$/\/208.67.222.222#443/" >> /var/dnsmasq.d/ssr.conf
-	( sort -u /var/dnsmasq.d/ssr.conf | sed '/\/\//d; /\/127.0.0.1\//d' > /var/dnsmasq.d/ssr-servers.conf ) && rm -f /var/dnsmasq.d/ssr.conf
-	( /etc/init.d/dnsmasq restart >/dev/null 2>&1 )
-
 	if [ "$udp_relay_server" = "$main_server" ]; then
 		start_redir $main_server -u
 	elif valid_server $udp_relay_server; then
@@ -178,8 +194,8 @@ ssr_tunnel() {
 }
 
 start() {
-	mkdir -p /var/run /var/etc
-	echo 'exit 0' > /var/etc/$NAME.include
+	mkdir -p /var/run /var/etc $DNSMASQDIR
+	valid_server $(uci_get_by_type transparent_proxy main_server) && ssr_pre
 	ssr_redir && rules
 	ssr_local
 	ssr_tunnel
@@ -192,6 +208,7 @@ delay_start() {
 }
 
 boot() {
+	echo 'exit 0' > /var/etc/$NAME.include
 	local delay=$(uci_get_by_type general start_delay 0)
 	if [ "$delay" -gt 0 ]; then
 		delay_start $delay
@@ -229,19 +246,6 @@ watchdog(){
 	local main_server=$(uci_get_by_type transparent_proxy main_server)
 	valid_server $main_server || return 1
 
-	LOGTIME=$(date "+%Y-%m-%d %H:%M:%S")
-	TRPORT=$(uci_get_by_type transparent_proxy local_port 1234)
-	GOOGLE=$(ping -4 accounts.gstatic.com -c 1 -w 5 2>/dev/null | sed '1{s/[^(]*(//;s/).*//;q}')
-	IPINCN=119.29.29.29 #DNSPOD HTTPDNS
-
-	if [ "Z$GOOGLE" = "Z" ]; then
-		echo "[${LOGTIME}] Problem-DNS decteted, restarting ${NAME}..."
-		[ -x /etc/init.d/dnsmasq-extra ] && /etc/init.d/dnsmasq-extra restart || /etc/init.d/dnsmasq restart
-		stop  >/dev/null 2>&1
-		start >/dev/null 2>&1
-		return 0
-	fi
-
 	cat_connect() {
 		target="$1"
 		timeout=5
@@ -250,13 +254,33 @@ watchdog(){
 		[ "x$ret_code" = "x200" -o "x$ret_code" = "x204" ] && return 0 || return 1
 	}
 
+	LOGTIME=$(date "+%Y-%m-%d %H:%M:%S")
+	TRPORT=$(uci_get_by_type transparent_proxy local_port 1234)
+	GOOGLE=$(ping -4 accounts.gstatic.com -c 1 -w 1 2>/dev/null | sed '1{s/[^(]*(//;s/).*//;q}')
+	DNSPOD=119.29.29.29 #DNSPOD HTTPDNS (Inside GFW)
+
+	if [ "Z$GOOGLE" = "Z" ]; then
+		iptables -t nat -I OUTPUT -p tcp -d $DNSPOD -j RETURN
+		cat_connect "http://${DNSPOD}/d?dn=qq.com"
+		if [ "Z$?" = "Z0" ]; then
+			echo "[${LOGTIME}] Problem-DNS decteted, restarting ${NAME}..."
+			[ -x /etc/init.d/dnsmasq-extra ] && /etc/init.d/dnsmasq-extra restart || /etc/init.d/dnsmasq restart
+			stop  >/dev/null 2>&1
+			start >/dev/null 2>&1
+		else
+			echo '['$LOGTIME'] Network Problem. Do nothing.'
+		fi
+		iptables -t nat -D OUTPUT -p tcp -d $DNSPOD -j RETURN
+		return 0
+	fi
+
 	iptables -t nat -I OUTPUT -p tcp -d $GOOGLE -j REDIRECT --to-port $TRPORT
-	iptables -t nat -I OUTPUT -p tcp -d $IPINCN -j RETURN
-	cat_connect $GOOGLE/generate_204
+	iptables -t nat -I OUTPUT -p tcp -d $DNSPOD -j RETURN
+	cat_connect "http://${GOOGLE}/generate_204"
 	if [ "Z$?" = "Z0" ]; then
 		echo "[${LOGTIME}] ${NAME} No Problem."
 	else
-		cat_connect '119.29.29.29/d?dn=jd.com'
+		cat_connect '119.29.29.29/d?dn=qq.com'
 		if [ "Z$?" = "Z0" ]; then
 			echo "[${LOGTIME}] Problem decteted, restarting ${NAME}..."
 			[ -x /etc/init.d/haproxy-tcp ] && /etc/init.d/haproxy-tcp restart
@@ -268,6 +292,6 @@ watchdog(){
 	fi
 
 	iptables -t nat -D OUTPUT -p tcp -d $GOOGLE -j REDIRECT --to-port $TRPORT
-	iptables -t nat -D OUTPUT -p tcp -d $IPINCN -j RETURN
+	iptables -t nat -D OUTPUT -p tcp -d $DNSPOD -j RETURN
 	return 0
 }
