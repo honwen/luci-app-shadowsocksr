@@ -280,7 +280,7 @@ watchdog(){
 	if [ "Z$?" = "Z0" ]; then
 		echo "[${LOGTIME}] ${NAME} No Problem."
 	else
-		cat_connect '119.29.29.29/d?dn=qq.com'
+		cat_connect "http://${DNSPOD}/d?dn=qq.com"
 		if [ "Z$?" = "Z0" ]; then
 			echo "[${LOGTIME}] Problem decteted, restarting ${NAME}..."
 			[ -x /etc/init.d/haproxy-tcp ] && /etc/init.d/haproxy-tcp restart
