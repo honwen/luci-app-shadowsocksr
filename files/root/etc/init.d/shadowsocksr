@@ -1,10 +1,4 @@
 #!/bin/sh /etc/rc.common
-#
-# Copyright (C) 2016 Jian Chang <aa65535@live.com>
-#
-# This is free software, licensed under the GNU General Public License v3.
-# See /LICENSE for more information.
-#
 
 START=90
 STOP=15
@@ -249,7 +243,7 @@ watchdog(){
 	cat_connect() {
 		target="$1"
 		timeout=5
-		ret_code=$(curl -s --connect-timeout $timeout "$target" -w %{http_code} -o /dev/null | tail -n1)
+		ret_code=$(busybox wget -T $timeout -q -O /dev/null -S "$target" 2>&1 | grep HTTP | sed -n 's/.*\(20[0-9]\).*/\1/p' )
 		# echo $ret_code
 		[ "x$ret_code" = "x200" -o "x$ret_code" = "x204" ] && return 0 || return 1
 	}
@@ -261,7 +255,7 @@ watchdog(){
 
 	if [ "Z$GOOGLE" = "Z" ]; then
 		iptables -t nat -I OUTPUT -p tcp -d $DNSPOD -j RETURN
-		cat_connect "http://${DNSPOD}/d?dn=qq.com"
+		cat_connect "${DNSPOD}/d?dn=qq.com"
 		if [ "Z$?" = "Z0" ]; then
 			echo "[${LOGTIME}] Problem-DNS decteted, restarting ${NAME}..."
 			[ -x /etc/init.d/dnsmasq-extra ] && /etc/init.d/dnsmasq-extra restart || /etc/init.d/dnsmasq restart
@@ -276,7 +270,7 @@ watchdog(){
 
 	iptables -t nat -I OUTPUT -p tcp -d $GOOGLE -j REDIRECT --to-port $TRPORT
 	iptables -t nat -I OUTPUT -p tcp -d $DNSPOD -j RETURN
-	cat_connect "http://${GOOGLE}/generate_204"
+	cat_connect "${GOOGLE}/generate_204"
 	if [ "Z$?" = "Z0" ]; then
 		echo "[${LOGTIME}] ${NAME} No Problem."
 	else

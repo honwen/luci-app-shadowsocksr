@@ -42,7 +42,7 @@ OpenWrt LuCI for ShadowSocksR-libev
 依赖
 ---
 
-软件包的正常使用需要依赖 `iptables` 和 `ipset`.  
+软件包的正常使用需要依赖 `wget ip` in `busybox`, `iptables` 和 `ipset`.  
 软件包不显式依赖 `shadowsocksr-libev`, 会根据用户添加的可执行文件启用相应的功能.  
 **GFW-List模式 正常使用需要依赖 [dnsmasq-extra][openwrt-dnsmasq-extra], 其中包括`DNS防污染`和`GFW-List`**  
 可执行文件可通过安装 [openwrt-shadowsocksr][openwrt-shadowsocksr] 中提供的 `shadowsocksr-libev` 获得.  
@@ -51,8 +51,6 @@ OpenWrt LuCI for ShadowSocksR-libev
  可执行文件  | 可选 | 功能        | TCP协议 | UDP协议 
  ------------|------|-------------|---------|-----------------------------------
  `ssr-redir`  | 是   | 透明代理    | 支持    | 需安装 `iptables-mod-tproxy`, `ip`
- `ssr-local`  | 是   | SOCKS5 代理 | 支持    | 支持
- `ssr-tunnel` | 是   | 端口转发    | 支持    | 支持
 
 注: 可执行文件在 `$PATH` 环境变量所表示的搜索路径中, 都可被正确调用.
 
