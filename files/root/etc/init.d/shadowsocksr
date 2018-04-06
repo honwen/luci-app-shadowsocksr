@@ -249,7 +249,8 @@ watchdog(){
 	cat_connect() {
 		target="$1"
 		timeout=5
-		ret_code=$(curl -s --connect-timeout $timeout "$target" -w %{http_code} -o /dev/null | tail -n1)
+		retry=2
+		ret_code=$(curl -s --connect-timeout $timeout --retry $retry --retry-delay $timeout "$target" -w %{http_code} -o /dev/null | tail -n1)
 		# echo $ret_code
 		[ "x$ret_code" = "x200" -o "x$ret_code" = "x204" ] && return 0 || return 1
 	}

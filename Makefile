@@ -9,7 +9,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=luci-app-shadowsocksr
 PKG_VERSION:=1.9.0
-PKG_RELEASE:=3
+PKG_RELEASE:=4
 
 PKG_LICENSE:=GPLv3
 PKG_LICENSE_FILES:=LICENSE
