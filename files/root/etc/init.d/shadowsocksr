@@ -1,6 +1,7 @@
 #!/bin/sh /etc/rc.common
 #
 # Copyright (C) 2016 Jian Chang <aa65535@live.com>
+#                    2018 chenhw2 <https://github.com/chenhw2>
 #
 # This is free software, licensed under the GNU General Public License v3.
 # See /LICENSE for more information.
@@ -14,6 +15,7 @@ EXTRA_COMMANDS="rules watchdog"
 CONFIG_FILE=/var/etc/$NAME.json
 CRON_FILE=/etc/crontabs/root
 DNSMASQDIR=/var/dnsmasq.d
+WATCHDOG_ENDPOINT='accounts.gstatic.com'
 
 uci_get_by_name() {
 	local ret=$(uci get $NAME.$1.$2 2>/dev/null)
@@ -95,11 +97,12 @@ EOF
 }
 
 ssr_pre() {
-	DNSMASQCONF=$DNSMASQDIR/ssr.conf
-	echo "all-servers" > $DNSMASQCONF
+	DNSconf=$DNSMASQDIR/ssr-servers.conf
+	tmpDNSconf=$DNSMASQDIR/ssr.conf
+	echo "all-servers" > $tmpDNSconf
 	config_load $NAME
 	for server in $(config_foreach get_server_ips servers); do
-		cat <<-EOF >> $DNSMASQCONF
+		cat <<-EOF >> $tmpDNSconf
 		ipset=/${server}/ssr_spec_dst_sp
 		server=/${server}/#
 		server=/${server}/114.114.114.114
@@ -109,9 +112,13 @@ ssr_pre() {
 EOF
 	done
 
-	( sort -u $DNSMASQCONF | sed '/\/\//d; /\/127.0.0.1\//d' > /var/dnsmasq.d/ssr-servers.conf ) && rm -f $DNSMASQCONF
+	( sort -u $tmpDNSconf | sed '/\/\//d; /\/127.0.0.1\//d' > $DNSconf ) && rm -f $tmpDNSconf
 
-	echo "server=/accounts.gstatic.com/127.0.0.1#$(uci_get_by_type port_forward local_port 5300)" >> /var/dnsmasq.d/ssr-servers.conf
+	echo "server=/${WATCHDOG_ENDPOINT}/127.0.0.1#$(uci_get_by_type port_forward local_port 5300)" >> $DNSconf
+	[ -x /etc/init.d/dnsmasq-extra ] || {
+		echo "server=/${WATCHDOG_ENDPOINT}/208.67.222.222#443" >> $DNSconf
+		echo "server=/${WATCHDOG_ENDPOINT}/114.114.115.115" >> $DNSconf
+	}
 	/etc/init.d/dnsmasq restart >/dev/null 2>&1
 	# wait-for-dns, timeout 10s
 	for _ in `seq 10`; do if ping -4 t.cn -c 1 -w 1 >/dev/null 2>&1; then break; fi; done
@@ -225,7 +232,7 @@ kill_all() {
 stop() {
 	/usr/bin/ssr-rules -f
 	kill_all ssr-redir ssr-local ssr-tunnel
-	rm -f /var/dnsmasq.d/ssr.conf /var/dnsmasq.d/ssr-servers.conf 2>/dev/null
+	rm -f $DNSMASQDIR/ssr.conf $DNSMASQDIR/ssr-servers.conf 2>/dev/null
 	del_cron
 }
 
@@ -257,7 +264,7 @@ watchdog(){
 
 	LOGTIME=$(date "+%Y-%m-%d %H:%M:%S")
 	TRPORT=$(uci_get_by_type transparent_proxy local_port 1234)
-	GOOGLE=$(ping -4 accounts.gstatic.com -c 1 -w 1 2>/dev/null | sed '1{s/[^(]*(//;s/).*//;q}')
+	GOOGLE=$(ping -4 ${WATCHDOG_ENDPOINT} -c 1 -w 1 2>/dev/null | sed '1{s/[^(]*(//;s/).*//;q}')
 	DNSPOD=119.29.29.29 #DNSPOD HTTPDNS (Inside GFW)
 
 	if [ "Z$GOOGLE" = "Z" ]; then
