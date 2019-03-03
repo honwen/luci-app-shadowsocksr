@@ -121,7 +121,7 @@ EOF
 	}
 	/etc/init.d/dnsmasq restart >/dev/null 2>&1
 	# wait-for-dns, timeout 10s
-	for _ in `seq 10`; do if ping -4 t.cn -c 1 -w 1 >/dev/null 2>&1; then break; fi; done
+	for _ in `seq 10`; do if ping -4 -q -c 1 -s 0 -W 1 -w 1 t.cn >/dev/null 2>&1; then break; fi; done
 }
 
 start_rules() {
@@ -265,7 +265,7 @@ watchdog(){
 
 	LOGTIME=$(date "+%Y-%m-%d %H:%M:%S")
 	TRPORT=$(uci_get_by_type transparent_proxy local_port 1234)
-	GOOGLE=$(ping -4 ${WATCHDOG_ENDPOINT} -c 1 -w 1 2>/dev/null | sed '1{s/[^(]*(//;s/).*//;q}')
+	GOOGLE=$(ping -4 -q -c 1 -s 0 -W 1 -w 1 ${WATCHDOG_ENDPOINT} 2>/dev/null | sed '1{s/[^(]*(//;s/).*//;q}')
 	DNSPOD=119.29.29.29 #DNSPOD HTTPDNS (Inside GFW)
 
 	if [ "Z$GOOGLE" = "Z" ]; then

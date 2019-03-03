@@ -210,13 +210,13 @@ gen_prerouting_rules() {
 while getopts ":s:l:S:L:B:b:W:w:I:d:a:e:oOuUfh" arg; do
 	case "$arg" in
 		s)
-			server=$(for host in $OPTARG; do ping $host -c 1 -w 1 | sed '1{s/[^(]*(//;s/).*//;q}' ; done)
+			server=$(for it in $OPTARG; do ping -q -c 1 -s 0 -W 1 -w 1 $it 2>/dev/null | sed '1{s/[^(]*(//; s/).*//;q}' | sed 's/[^(]*(//; s/).*//' ; done)
 			;;
 		l)
 			local_port=$OPTARG
 			;;
 		S)
-			SERVER=$(for host in $OPTARG; do ping $host -c 1 -w 1 | sed '1{s/[^(]*(//;s/).*//;q}' ; done)
+			SERVER=$(for it in $OPTARG; do ping -q -c 1 -s 0 -W 1 -w 1 $it 2>/dev/null | sed '1{s/[^(]*(//; s/).*//;q}' | sed 's/[^(]*(//; s/).*//' ; done)
 			;;
 		L)
 			LOCAL_PORT=$OPTARG
