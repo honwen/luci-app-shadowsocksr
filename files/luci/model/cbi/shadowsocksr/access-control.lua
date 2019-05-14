@@ -6,7 +6,7 @@ local shadowsocksr = "shadowsocksr"
 local uci = luci.model.uci.cursor()
 local nwm = require("luci.model.network").init()
 local gfwroute = luci.sys.call("command -v /etc/init.d/dnsmasq-extra >/dev/null") == 0
-local chnroute = uci:get_first("chinadns", "chinadns", "chnroute")
+local chnroute = gfwroute and "/etc/chinadns_chnroute.txt" or uci:get_first("chinadns", "chinadns", "chnroute")
 local lan_ifaces = {}
 
 local function ipv4_hints(callback)
