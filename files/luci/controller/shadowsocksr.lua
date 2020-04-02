@@ -16,6 +16,9 @@ function index()
 		cbi("shadowsocksr/general"),
 		_("General Settings"), 10).leaf = true
 
+	entry({"admin", "services", "shadowsocksr", "status"},
+		call("action_status")).leaf = true
+
 	entry({"admin", "services", "shadowsocksr", "servers"},
 		arcombine(cbi("shadowsocksr/servers"), cbi("shadowsocksr/servers-details")),
 		_("Servers Manage"), 20).leaf = true
@@ -44,6 +47,19 @@ function index()
 		cbi("shadowsocksr/gfwlist-custom"),
 		_("Custom-List"), 50).leaf = true
 
+end
+
+local function is_running(name)
+	return luci.sys.call("pgrep -x %s >/dev/null" %{name}) == 0
+end
+
+function action_status()
+	luci.http.prepare_content("application/json")
+	luci.http.write_json({
+		ssr_redir = is_running("ssr-redir"),
+		ssr_local = is_running("ssr-local"),
+		ssr_tunnel = is_running("ssr-tunnel")
+	})
 end
 
 function action_log()

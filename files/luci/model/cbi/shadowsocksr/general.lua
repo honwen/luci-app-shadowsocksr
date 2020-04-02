@@ -40,6 +40,7 @@ uci:foreach(shadowsocksr, "servers", function(s)
 end)
 
 m = Map(shadowsocksr, "%s - %s" %{translate("ShadowSocksR"), translate("General Settings")})
+m.template = "shadowsocksr/general"
 
 -- [[ Running Status ]]--
 s = m:section(TypedSection, "general", translate("Running Status"))
@@ -47,17 +48,20 @@ s.anonymous = true
 
 if has_redir then
 	o = s:option(DummyValue, "_status", translate("Transparent Proxy"))
-	o.value = get_status("ssr-redir")
+	o.value = "<span id=\"_redir_status\">%s</span>" %{get_status("ssr-redir")}
+	o.rawhtml = true
 end
 
 if has_local then
 	o = s:option(DummyValue, "_status", translate("SOCKS5 Proxy"))
-	o.value = get_status("ssr-local")
+	o.value = "<span id=\"_local_status\">%s</span>" %{get_status("ssr-local")}
+	o.rawhtml = true
 end
 
 if has_tunnel then
 	o = s:option(DummyValue, "_status", translate("Port Forward"))
-	o.value = get_status("ssr-tunnel")
+	o.value = "<span id=\"_tunnel_status\">%s</span>" %{get_status("ssr-tunnel")}
+	o.rawhtml = true
 end
 
 s = m:section(TypedSection, "general", translate("Boot Settings"))
