@@ -1,6 +1,6 @@
 #
 # Copyright (C) 2016 Jian Chang <aa65535@live.com>
-#                    2018 chenhw2 <https://github.com/chenhw2>
+#               2017-2020 honwen https://github.com/honwen
 #
 # This is free software, licensed under the GNU General Public License v3.
 # See /LICENSE for more information.
@@ -10,7 +10,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=luci-app-shadowsocksr
 PKG_VERSION:=1.9.1
-PKG_RELEASE:=1
+PKG_RELEASE:=2
 
 PKG_LICENSE:=GPLv3
 PKG_LICENSE_FILES:=LICENSE
