@@ -1,7 +1,7 @@
 #!/bin/sh /etc/rc.common
 #
 # Copyright (C) 2016 Jian Chang <aa65535@live.com>
-#                    2018 chenhw2 <https://github.com/chenhw2>
+#               2017-2020 honwen https://github.com/honwen
 #
 # This is free software, licensed under the GNU General Public License v3.
 # See /LICENSE for more information.
@@ -105,8 +105,9 @@ ssr_pre() {
 		cat <<-EOF >> $tmpDNSconf
 		ipset=/${server}/ssr_spec_dst_sp
 		server=/${server}/#
+		server=/${server}/1.1.8.9
 		server=/${server}/114.114.114.114
-		server=/${server}/114.114.115.115
+		server=/${server}/80.80.80.80
 		server=/${server}/208.67.220.220#5353
 		server=/${server}/208.67.222.222#443
 EOF
