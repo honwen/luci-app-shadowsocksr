@@ -105,21 +105,32 @@ ssr_pre() {
 		cat <<-EOF >> $tmpDNSconf
 		ipset=/${server}/ssr_spec_dst_sp
 		server=/${server}/#
-		server=/${server}/1.1.8.9
+		server=/${server}/162.14.21.56
+		server=/${server}/162.14.21.178
 		server=/${server}/114.114.114.114
 		server=/${server}/80.80.80.80
-		server=/${server}/208.67.220.220#5353
 		server=/${server}/208.67.222.222#443
+		server=/${server}/208.67.220.220#5353
 EOF
 	done
 
+	( grep -q 'no-resolv' /etc/dnsmasq.conf /var/etc/dnsmasq.conf.* 2>/dev/null) && sed "/\/#$/d" -i $tmpDNSconf
+	( grep -q 'no-resolv' /etc/dnsmasq.d/* /var/dnsmasq.d/* 2>/dev/null) && sed "/\/#$/d" -i $tmpDNSconf
 	( sort -u $tmpDNSconf | sed '/\/\//d; /\/127.0.0.1\//d' > $DNSconf ) && rm -f $tmpDNSconf
 
 	echo "server=/${WATCHDOG_ENDPOINT}/127.0.0.1#$(uci_get_by_type port_forward local_port 5300)" >> $DNSconf
 	[ -x /etc/init.d/dnsmasq-extra ] || {
 		echo "server=/${WATCHDOG_ENDPOINT}/208.67.222.222#443" >> $DNSconf
 		echo "server=/${WATCHDOG_ENDPOINT}/114.114.115.115" >> $DNSconf
+		echo "server=/${WATCHDOG_ENDPOINT}/80.80.80.80" >> $DNSconf
 	}
+
+	cat <<-EOF >> $DNSconf
+	server=/t.cn/223.6.6.6
+	server=/t.cn/162.14.21.56
+	server=/t.cn/114.114.114.114
+EOF
+
 	/etc/init.d/dnsmasq restart >/dev/null 2>&1
 	# wait-for-dns, timeout 10s
 	for _ in `seq 10`; do if ping -4 -q -c 1 -s 0 -W 1 -w 1 t.cn >/dev/null 2>&1; then break; fi; done
